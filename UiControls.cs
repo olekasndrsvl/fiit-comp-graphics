@@ -1,0 +1,193 @@
+using System.ComponentModel;
+using System.Drawing.Drawing2D;
+
+namespace Lab2;
+
+public sealed class ResettableTrackBar : TrackBar
+{
+    private long? previousMouseDownTime;
+    private Point previousMouseDownPosition;
+    private bool suppressMouseUp;
+
+    protected override void WndProc(ref Message m)
+    {
+        const int wmMouseMove = 0x0200;
+        const int wmLeftButtonDown = 0x0201;
+        const int wmLeftButtonUp = 0x0202;
+        const int wmLeftButtonDoubleClick = 0x0203;
+
+        // Detect two presses ourselves: the native TrackBar may send two
+        // WM_LBUTTONDOWN messages instead of WM_LBUTTONDBLCLK.
+        if (m.Msg == wmLeftButtonDown || m.Msg == wmLeftButtonDoubleClick)
+        {
+            var position = MousePositionFromMessage(m);
+            var now = Environment.TickCount64;
+            if (previousMouseDownTime is long previousTime &&
+                now - previousTime <= SystemInformation.DoubleClickTime &&
+                IsNearPreviousPress(position))
+            {
+                previousMouseDownTime = null;
+                suppressMouseUp = true;
+                Focus();
+                Value = Math.Clamp(0, Minimum, Maximum);
+                return; // Do not let the native control move the thumb again.
+            }
+
+            suppressMouseUp = false;
+            previousMouseDownTime = now;
+            previousMouseDownPosition = position;
+        }
+        else if (m.Msg == wmMouseMove && (m.WParam.ToInt64() & 1) != 0 &&
+                 !IsNearPreviousPress(MousePositionFromMessage(m)))
+        {
+            previousMouseDownTime = null; // A drag is not the first click of a pair.
+        }
+        else if (m.Msg == wmLeftButtonUp && suppressMouseUp)
+        {
+            suppressMouseUp = false;
+            return;
+        }
+
+        base.WndProc(ref m);
+    }
+
+    private bool IsNearPreviousPress(Point position)
+    {
+        var size = SystemInformation.DoubleClickSize;
+        return new Rectangle(
+            previousMouseDownPosition.X - size.Width / 2,
+            previousMouseDownPosition.Y - size.Height / 2,
+            size.Width, size.Height).Contains(position);
+    }
+
+    private static Point MousePositionFromMessage(Message message)
+    {
+        var coordinates = message.LParam.ToInt64();
+        return new Point(unchecked((short)coordinates), unchecked((short)(coordinates >> 16)));
+    }
+}
+
+public sealed class ImagePreviewControl : Control
+{
+    private Image? _image;
+
+    public ImagePreviewControl()
+    {
+        DoubleBuffered = true;
+        BackColor = SystemColors.Window;
+        ForeColor = SystemColors.WindowText;
+        MinimumSize = new Size(100, 80);
+    }
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Image? Image
+    {
+        get => _image;
+        set
+        {
+            _image = value;
+            Invalidate();
+        }
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+        var bounds = ClientRectangle;
+        if (bounds.Width <= 1 || bounds.Height <= 1)
+        {
+            return;
+        }
+
+        using var borderPen = new Pen(SystemColors.ControlDark);
+        e.Graphics.DrawRectangle(borderPen, 0, 0, bounds.Width - 1, bounds.Height - 1);
+
+        if (_image is null)
+        {
+            return;
+        }
+
+        var target = CalculateZoomRectangle(_image.Size, Rectangle.Inflate(bounds, -8, -8));
+        e.Graphics.DrawImage(_image, target);
+    }
+
+    private static Rectangle CalculateZoomRectangle(Size imageSize, Rectangle available)
+    {
+        var scale = Math.Min(available.Width / (double)imageSize.Width, available.Height / (double)imageSize.Height);
+        var width = Math.Max(1, (int)Math.Round(imageSize.Width * scale));
+        var height = Math.Max(1, (int)Math.Round(imageSize.Height * scale));
+        return new Rectangle(
+            available.Left + (available.Width - width) / 2,
+            available.Top + (available.Height - height) / 2,
+            width,
+            height);
+    }
+}
+
+public sealed class HistogramView : Control
+{
+    private int[]? _values;
+
+    public HistogramView()
+    {
+        DoubleBuffered = true;
+        BackColor = SystemColors.Window;
+        ForeColor = SystemColors.WindowText;
+        MinimumSize = new Size(120, 90);
+    }
+
+    [DefaultValue(typeof(Color), "Black")]
+    public Color SeriesColor { get; set; } = Color.Black;
+
+    public void SetValues(IEnumerable<int>? values)
+    {
+        _values = values?.ToArray();
+        Invalidate();
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        var bounds = Rectangle.Inflate(ClientRectangle, -10, -10);
+        if (bounds.Width < 20 || bounds.Height < 20)
+        {
+            return;
+        }
+
+        DrawGrid(e.Graphics, bounds);
+        if (_values is null || _values.Length == 0 || _values.Max() <= 0)
+        {
+            return;
+        }
+
+        var maximum = _values.Max();
+        var points = new PointF[_values.Length];
+        for (var i = 0; i < _values.Length; i++)
+        {
+            var x = bounds.Left + i * bounds.Width / (float)Math.Max(1, _values.Length - 1);
+            var y = bounds.Bottom - _values[i] * bounds.Height / (float)maximum;
+            points[i] = new PointF(x, y);
+        }
+
+        using var linePen = new Pen(SeriesColor);
+        if (points.Length == 1)
+            e.Graphics.DrawLine(linePen, points[0], new PointF(points[0].X, bounds.Bottom));
+        else
+            e.Graphics.DrawLines(linePen, points);
+    }
+
+    private static void DrawGrid(Graphics graphics, Rectangle bounds)
+    {
+        using var gridPen = new Pen(SystemColors.ControlLight);
+        for (var i = 0; i <= 4; i++)
+        {
+            var y = bounds.Top + i * bounds.Height / 4;
+            graphics.DrawLine(gridPen, bounds.Left, y, bounds.Right, y);
+        }
+    }
+}
