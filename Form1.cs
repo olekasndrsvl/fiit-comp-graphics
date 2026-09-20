@@ -57,8 +57,6 @@ public partial class Form1 : Form
         saveHsvButton.Enabled = result is not null;
     }
 
-    public void SetStatus(string text) => statusLabel.Text = text;
-
     private void OpenImageButton_Click(object? sender, EventArgs e)
     {
         using var dialog = new OpenFileDialog
@@ -87,13 +85,10 @@ public partial class Form1 : Form
             sourceBitmap = newBitmap;
             sourcePreview.Image = sourceBitmap;
 
-            fileNameLabel.Text = Path.GetFileName(dialog.FileName);
-            imageInfoLabel.Text = $"{sourceBitmap.Width} × {sourceBitmap.Height} пикс.  ·  {GetFileSize(dialog.FileName)}";
             clearImageButton.Enabled = true;
             runGrayscaleButton.Enabled = true;
             runChannelsButton.Enabled = true;
             updateHsvButton.Enabled = true;
-            statusLabel.Text = "Изображение загружено";
 
             ClearResultViews();
             SourceImageChanged?.Invoke(this, EventArgs.Empty);
@@ -119,13 +114,10 @@ public partial class Form1 : Form
         sourceBitmap?.Dispose();
         sourceBitmap = null;
 
-        fileNameLabel.Text = string.Empty;
-        imageInfoLabel.Text = string.Empty;
         clearImageButton.Enabled = false;
         runGrayscaleButton.Enabled = false;
         runChannelsButton.Enabled = false;
         updateHsvButton.Enabled = false;
-        statusLabel.Text = string.Empty;
         ClearResultViews();
         SourceImageChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -179,13 +171,6 @@ public partial class Form1 : Form
 
     private static string FormatSignedValue(int value, string suffix) => $"{(value > 0 ? "+" : string.Empty)}{value}{suffix}";
 
-    private static string GetFileSize(string path)
-    {
-        var bytes = new FileInfo(path).Length;
-        return bytes >= 1024 * 1024
-            ? $"{bytes / 1024d / 1024d:0.##} МБ"
-            : $"{Math.Max(1, bytes / 1024d):0.#} КБ";
-    }
 }
 
 public sealed class SaveResultEventArgs(string fileName) : EventArgs

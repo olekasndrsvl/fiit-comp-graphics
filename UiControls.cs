@@ -3,6 +3,7 @@ using System.Drawing.Drawing2D;
 
 namespace Lab2;
 
+// это просто нейронкой запилил удобную функцию, что полузнок сбрасывался при двойном клике
 public sealed class ResettableTrackBar : TrackBar
 {
     private long? previousMouseDownTime;
@@ -16,8 +17,7 @@ public sealed class ResettableTrackBar : TrackBar
         const int wmLeftButtonUp = 0x0202;
         const int wmLeftButtonDoubleClick = 0x0203;
 
-        // Detect two presses ourselves: the native TrackBar may send two
-        // WM_LBUTTONDOWN messages instead of WM_LBUTTONDBLCLK.
+       
         if (m.Msg == wmLeftButtonDown || m.Msg == wmLeftButtonDoubleClick)
         {
             var position = MousePositionFromMessage(m);
@@ -30,7 +30,7 @@ public sealed class ResettableTrackBar : TrackBar
                 suppressMouseUp = true;
                 Focus();
                 Value = Math.Clamp(0, Minimum, Maximum);
-                return; // Do not let the native control move the thumb again.
+                return;
             }
 
             suppressMouseUp = false;
@@ -40,7 +40,7 @@ public sealed class ResettableTrackBar : TrackBar
         else if (m.Msg == wmMouseMove && (m.WParam.ToInt64() & 1) != 0 &&
                  !IsNearPreviousPress(MousePositionFromMessage(m)))
         {
-            previousMouseDownTime = null; // A drag is not the first click of a pair.
+            previousMouseDownTime = null; 
         }
         else if (m.Msg == wmLeftButtonUp && suppressMouseUp)
         {
@@ -128,6 +128,8 @@ public sealed class ImagePreviewControl : Control
     }
 }
 
+
+// компонент для рисования гистграмм
 public sealed class HistogramView : Control
 {
     private int[]? _values;

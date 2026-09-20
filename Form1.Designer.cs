@@ -31,9 +31,6 @@ partial class Form1
     private Label hueValueLabel = null!;
     private Label saturationValueLabel = null!;
     private Label valueValueLabel = null!;
-    private Label fileNameLabel = null!;
-    private Label imageInfoLabel = null!;
-    private ToolStripStatusLabel statusLabel = null!;
     private CheckBox autoPreviewCheckBox = null!;
 
     protected override void Dispose(bool disposing)
@@ -71,35 +68,27 @@ partial class Form1
         tabs.TabPages.Add(CreateHsvTab());
         workspace.Controls.Add(tabs, 1, 0);
 
-        statusLabel = new ToolStripStatusLabel { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
-        var status = new StatusStrip { SizingGrip = false };
-        status.Items.Add(statusLabel);
         Controls.Add(workspace);
-        Controls.Add(status);
         ResumeLayout(true);
     }
 
     private Control CreateSourcePanel()
     {
-        var panel = CreateGrid(1, 5);
+        var panel = CreateGrid(1, 3);
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < 2; i++)
             panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         sourcePreview = new ImagePreviewControl();
         panel.Controls.Add(CreateLabeledView("Исходник", sourcePreview), 0, 0);
-        fileNameLabel = new Label { Dock = DockStyle.Fill, AutoEllipsis = true, Height = 22 };
-        imageInfoLabel = new Label { Dock = DockStyle.Fill, AutoEllipsis = true, Height = 22 };
-        panel.Controls.Add(fileNameLabel, 0, 1);
-        panel.Controls.Add(imageInfoLabel, 0, 2);
         openImageButton = CreateButton("Открыть...");
         openImageButton.Click += OpenImageButton_Click;
         clearImageButton = CreateButton("Очистить");
         clearImageButton.Enabled = false;
         clearImageButton.Click += ClearImageButton_Click;
-        panel.Controls.Add(openImageButton, 0, 3);
-        panel.Controls.Add(clearImageButton, 0, 4);
+        panel.Controls.Add(openImageButton, 0, 1);
+        panel.Controls.Add(clearImageButton, 0, 2);
         return panel;
     }
 
