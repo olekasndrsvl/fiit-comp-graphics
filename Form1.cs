@@ -1,3 +1,5 @@
+using FastBitmap;
+
 namespace Lab2;
 
 public partial class Form1 : Form
@@ -73,12 +75,9 @@ public partial class Form1 : Form
 
         try
         {
-            using var loadedImage = Image.FromFile(dialog.FileName);
-            var newBitmap = new Bitmap(loadedImage.Width, loadedImage.Height);
-            using (var graphics = Graphics.FromImage(newBitmap))
-            {
-                graphics.DrawImageUnscaled(loadedImage, 0, 0);
-            }
+            using var loadedImage = new Bitmap(dialog.FileName);
+            // Select из FastBitmap создаёт отдельную копию без изменения цветов.
+            var newBitmap = loadedImage.Select(color => color);
 
             sourcePreview.Image = null;
             sourceBitmap?.Dispose();

@@ -151,20 +151,13 @@ if (dialog.ShowDialog(this) != DialogResult.OK)
 Далее читается изображение:
 
 ```csharp
-using var loadedImage = Image.FromFile(dialog.FileName);
-var newBitmap = new Bitmap(loadedImage.Width, loadedImage.Height);
+using var loadedImage = new Bitmap(dialog.FileName);
+var newBitmap = loadedImage.Select(color => color);
 ```
 
-Создаётся отдельный `Bitmap`, и в него копируется исходная картинка:
+Метод расширения `Select()` из подключённого пространства имён `FastBitmap` создаёт новый `Bitmap`, обходя пиксели через `LockBits`. Функция `color => color` возвращает каждый цвет без изменения, поэтому получается отдельная копия исходника.
 
-```csharp
-using (var graphics = Graphics.FromImage(newBitmap))
-{
-    graphics.DrawImageUnscaled(loadedImage, 0, 0);
-}
-```
-
-Здесь `Graphics` рисует **внутрь `newBitmap`**, а не на экран. `DrawImageUnscaled()` копирует изображение без масштабирования.
+Это реальное использование библиотеки `FastBitmap`: внутри `Select()` исходник и результат временно блокируются для доступа к пикселям, а перед возвратом результата разблокируются.
 
 Отдельная копия позволяет затем освободить `loadedImage` и не держать открытый файл заблокированным. `using` обеспечивает освобождение соответствующего ресурса при выходе из области его использования.
 
