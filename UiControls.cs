@@ -67,66 +67,6 @@ public sealed class ResettableTrackBar : TrackBar
     }
 }
 
-public sealed class ImagePreviewControl : Control
-{
-    private Image? _image;
-
-    public ImagePreviewControl()
-    {
-        DoubleBuffered = true;
-        BackColor = SystemColors.Window;
-        ForeColor = SystemColors.WindowText;
-        MinimumSize = new Size(100, 80);
-    }
-
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public Image? Image
-    {
-        get => _image;
-        set
-        {
-            _image = value;
-            Invalidate();
-        }
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        base.OnPaint(e);
-        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-        e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-        var bounds = ClientRectangle;
-        if (bounds.Width <= 1 || bounds.Height <= 1)
-        {
-            return;
-        }
-
-        using var borderPen = new Pen(SystemColors.ControlDark);
-        e.Graphics.DrawRectangle(borderPen, 0, 0, bounds.Width - 1, bounds.Height - 1);
-
-        if (_image is null)
-        {
-            return;
-        }
-
-        var target = CalculateZoomRectangle(_image.Size, Rectangle.Inflate(bounds, -8, -8));
-        e.Graphics.DrawImage(_image, target);
-    }
-
-    private static Rectangle CalculateZoomRectangle(Size imageSize, Rectangle available)
-    {
-        var scale = Math.Min(available.Width / (double)imageSize.Width, available.Height / (double)imageSize.Height);
-        var width = Math.Max(1, (int)Math.Round(imageSize.Width * scale));
-        var height = Math.Max(1, (int)Math.Round(imageSize.Height * scale));
-        return new Rectangle(
-            available.Left + (available.Width - width) / 2,
-            available.Top + (available.Height - height) / 2,
-            width,
-            height);
-    }
-}
 
 
 // компонент для рисования гистграмм

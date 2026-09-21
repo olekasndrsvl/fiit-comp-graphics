@@ -5,14 +5,14 @@ namespace Lab2;
 partial class Form1
 {
     private System.ComponentModel.IContainer? components;
-    private ImagePreviewControl sourcePreview = null!;
-    private ImagePreviewControl grayscaleFirstPreview = null!;
-    private ImagePreviewControl grayscaleSecondPreview = null!;
-    private ImagePreviewControl differencePreview = null!;
-    private ImagePreviewControl redChannelPreview = null!;
-    private ImagePreviewControl greenChannelPreview = null!;
-    private ImagePreviewControl blueChannelPreview = null!;
-    private ImagePreviewControl hsvResultPreview = null!;
+    private PictureBox sourcePreview = null!;
+    private PictureBox grayscaleFirstPreview = null!;
+    private PictureBox grayscaleSecondPreview = null!;
+    private PictureBox differencePreview = null!;
+    private PictureBox redChannelPreview = null!;
+    private PictureBox greenChannelPreview = null!;
+    private PictureBox blueChannelPreview = null!;
+    private PictureBox hsvResultPreview = null!;
     private HistogramView grayscaleFirstHistogram = null!;
     private HistogramView grayscaleSecondHistogram = null!;
     private HistogramView redHistogram = null!;
@@ -80,7 +80,7 @@ partial class Form1
         for (var i = 0; i < 2; i++)
             panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        sourcePreview = new ImagePreviewControl();
+        sourcePreview = CreatePictureBox();
         panel.Controls.Add(CreateLabeledView("Исходник", sourcePreview), 0, 0);
         openImageButton = CreateButton("Открыть...");
         openImageButton.Click += OpenImageButton_Click;
@@ -97,11 +97,11 @@ partial class Form1
         var tab = CreateTab("1. Оттенки серого");
         runGrayscaleButton = CreateButton("Рассчитать");
         runGrayscaleButton.Enabled = false;
-        runGrayscaleButton.Click += (_, _) => GrayscaleRequested?.Invoke(this, EventArgs.Empty);
+        runGrayscaleButton.Click += RunGrayscaleButton_Click;
 
-        grayscaleFirstPreview = new ImagePreviewControl();
-        grayscaleSecondPreview = new ImagePreviewControl();
-        differencePreview = new ImagePreviewControl();
+        grayscaleFirstPreview = CreatePictureBox();
+        grayscaleSecondPreview = CreatePictureBox();
+        differencePreview = CreatePictureBox();
         grayscaleFirstHistogram = new HistogramView();
         grayscaleSecondHistogram = new HistogramView();
 
@@ -124,10 +124,10 @@ partial class Form1
         var tab = CreateTab("2. Каналы RGB");
         runChannelsButton = CreateButton("Рассчитать");
         runChannelsButton.Enabled = false;
-        runChannelsButton.Click += (_, _) => ChannelsRequested?.Invoke(this, EventArgs.Empty);
-        redChannelPreview = new ImagePreviewControl();
-        greenChannelPreview = new ImagePreviewControl();
-        blueChannelPreview = new ImagePreviewControl();
+        runChannelsButton.Click += RunChannelsButton_Click;
+        redChannelPreview = CreatePictureBox();
+        greenChannelPreview = CreatePictureBox();
+        blueChannelPreview = CreatePictureBox();
         redHistogram = new HistogramView { SeriesColor = Color.Red };
         greenHistogram = new HistogramView { SeriesColor = Color.Green };
         blueHistogram = new HistogramView { SeriesColor = Color.Blue };
@@ -153,7 +153,7 @@ partial class Form1
         saveHsvButton = CreateButton("Сохранить...");
         saveHsvButton.Enabled = false;
         saveHsvButton.Click += SaveHsvButton_Click;
-        hsvResultPreview = new ImagePreviewControl();
+        hsvResultPreview = CreatePictureBox();
         var body = CreateGrid(2, 1);
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 230));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -192,7 +192,7 @@ partial class Form1
         panel.Controls.Add(autoPreviewCheckBox, 0, 3);
         updateHsvButton = CreateButton("Обновить");
         updateHsvButton.Enabled = false;
-        updateHsvButton.Click += (_, _) => HsvPreviewRequested?.Invoke(this, EventArgs.Empty);
+        updateHsvButton.Click += UpdateHsvButton_Click;
         panel.Controls.Add(updateHsvButton, 0, 4);
         resetHsvButton = CreateButton("Сброс");
         resetHsvButton.Click += ResetHsvButton_Click;
@@ -255,6 +255,16 @@ partial class Form1
     {
         Text = text, AutoSize = true, MinimumSize = new Size(100, 28),
         Dock = DockStyle.Fill, UseVisualStyleBackColor = true
+    };
+
+    private static PictureBox CreatePictureBox() => new()
+    {
+        Dock = DockStyle.Fill,
+        SizeMode = PictureBoxSizeMode.Zoom,
+        BorderStyle = BorderStyle.FixedSingle,
+        BackColor = SystemColors.Window,
+        MinimumSize = new Size(100, 80),
+        TabStop = false
     };
 
     private static TrackBar CreateTrackBar(int minimum, int maximum) => new ResettableTrackBar()

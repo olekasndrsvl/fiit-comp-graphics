@@ -12,23 +12,13 @@ public partial class Form1 : Form
         InitializeComponent();
     }
 
-    public event EventHandler? SourceImageChanged;
-    public event EventHandler? GrayscaleRequested;
-    public event EventHandler? ChannelsRequested;
-    public event EventHandler? HsvPreviewRequested;
-    public event EventHandler<SaveResultEventArgs>? SaveHsvRequested;
-
     public Bitmap? SourceImage => sourceBitmap;
     public int HueOffset => hueTrackBar.Value;
     public int SaturationOffset => saturationTrackBar.Value;
     public int ValueOffset => valueTrackBar.Value;
 
-    public void SetGrayscaleResults(
-        Image? first,
-        Image? second,
-        Image? difference,
-        IEnumerable<int>? firstHistogram = null,
-        IEnumerable<int>? secondHistogram = null)
+    // Сеттеры для результатов преобразований
+    public void SetGrayscaleResults(Image? first, Image? second, Image? difference, IEnumerable<int>? firstHistogram = null, IEnumerable<int>? secondHistogram = null)
     {
         grayscaleFirstPreview.Image = first;
         grayscaleSecondPreview.Image = second;
@@ -37,13 +27,7 @@ public partial class Form1 : Form
         grayscaleSecondHistogram.SetValues(secondHistogram);
     }
 
-    public void SetChannelResults(
-        Image? red,
-        Image? green,
-        Image? blue,
-        IEnumerable<int>? redValues = null,
-        IEnumerable<int>? greenValues = null,
-        IEnumerable<int>? blueValues = null)
+    public void SetChannelResults(Image? red, Image? green, Image? blue, IEnumerable<int>? redValues = null, IEnumerable<int>? greenValues = null, IEnumerable<int>? blueValues = null)
     {
         redChannelPreview.Image = red;
         greenChannelPreview.Image = green;
@@ -59,6 +43,7 @@ public partial class Form1 : Form
         saveHsvButton.Enabled = result is not null;
     }
 
+    // Ниже идут обработчики событий привязанных кнопкам и другим элементам UI.
     private void OpenImageButton_Click(object? sender, EventArgs e)
     {
         using var dialog = new OpenFileDialog
@@ -90,10 +75,9 @@ public partial class Form1 : Form
             updateHsvButton.Enabled = true;
 
             ClearResultViews();
-            SourceImageChanged?.Invoke(this, EventArgs.Empty);
             if (autoPreviewCheckBox.Checked)
             {
-                HsvPreviewRequested?.Invoke(this, EventArgs.Empty);
+                UpdateHsvPreview();
             }
         }
         catch (Exception exception)
@@ -118,7 +102,29 @@ public partial class Form1 : Form
         runChannelsButton.Enabled = false;
         updateHsvButton.Enabled = false;
         ClearResultViews();
-        SourceImageChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void RunGrayscaleButton_Click(object? sender, EventArgs e)
+    {
+        if (sourceBitmap is not null)
+            SolveGrayscale(sourceBitmap, grayscaleFirstHistogram, grayscaleSecondHistogram);
+    }
+
+    private void RunChannelsButton_Click(object? sender, EventArgs e)
+    {
+        if (sourceBitmap is not null)
+            SolveChannels(sourceBitmap);
+    }
+
+    private void UpdateHsvButton_Click(object? sender, EventArgs e)
+    {
+        UpdateHsvPreview();
+    }
+
+    private void UpdateHsvPreview()
+    {
+        if (sourceBitmap is not null)
+            SolveHsv(sourceBitmap, HueOffset, SaturationOffset, ValueOffset);
     }
 
     private void HsvTrackBar_ValueChanged(object? sender, EventArgs e)
@@ -129,7 +135,7 @@ public partial class Form1 : Form
 
         if (!updatingHsvControls && sourceBitmap is not null && autoPreviewCheckBox.Checked)
         {
-            HsvPreviewRequested?.Invoke(this, EventArgs.Empty);
+            UpdateHsvPreview();
         }
     }
 
@@ -145,6 +151,9 @@ public partial class Form1 : Form
 
     private void SaveHsvButton_Click(object? sender, EventArgs e)
     {
+        if (hsvResultPreview.Image is not Image result)
+            return;
+
         using var dialog = new SaveFileDialog
         {
             AddExtension = true,
@@ -157,7 +166,7 @@ public partial class Form1 : Form
 
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
-            SaveHsvRequested?.Invoke(this, new SaveResultEventArgs(dialog.FileName));
+            SaveHsvResult(result, dialog.FileName);
         }
     }
 
@@ -170,9 +179,4 @@ public partial class Form1 : Form
 
     private static string FormatSignedValue(int value, string suffix) => $"{(value > 0 ? "+" : string.Empty)}{value}{suffix}";
 
-}
-
-public sealed class SaveResultEventArgs(string fileName) : EventArgs
-{
-    public string FileName { get; } = fileName;
 }

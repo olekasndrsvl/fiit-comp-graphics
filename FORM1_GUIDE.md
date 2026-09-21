@@ -1,8 +1,23 @@
-# Разбор Form1.cs
+# Разбор Form1 и подключение решений
 
-В [Form1.cs](Form1.cs) находится **поведение окна**: загрузка изображения, очистка, реакция на ползунки, запросы на обработку и вывод готовых результатов. Расположение кнопок и остальных элементов задаётся в [Form1.Designer.cs](Form1.Designer.cs).
+## Структура файлов
 
-Эти два файла содержат части одного класса `Form1`. Ключевое слово `partial` позволяет разделить класс между файлами, поэтому обработчики свободно обращаются к элементам интерфейса, объявленным в другой части класса.
+Все файлы `Form1.*.cs` содержат части одного класса `Form1`. Ключевое слово `partial` позволяет разделить класс по файлам. Поэтому приватные методы решений видят элементы формы и могут напрямую вызывать методы вывода результатов.
+
+| Файл | Назначение |
+|---|---|
+| [Program.cs](Program.cs) | Настройка WinForms и запуск главного окна. |
+| [Form1.Designer.cs](Form1.Designer.cs) | Создание интерфейса, расположение элементов, подписки на события кнопок и ползунков. |
+| [Form1.cs](Form1.cs) | Загрузка, очистка, общие обработчики и вывод результатов. |
+| [Form1.Grayscale.cs](Form1.Grayscale.cs) | Место для реализации первого задания — `SolveGrayscale()`. |
+| [Form1.Channels.cs](Form1.Channels.cs) | Место для реализации второго задания — `SolveChannels()`. |
+| [Form1.Hsv.cs](Form1.Hsv.cs) | Место для реализации HSV и сохранения — `SolveHsv()`, `SaveHsvResult()`. |
+| [FastBitmap.cs](FastBitmap.cs) | Доступ к пикселям через LockBits, методы Select и ForEach. |
+| [UiControls.cs](UiControls.cs) | Гистограмма и ползунок со сбросом двойным кликом. |
+
+Интерфейса `ISolution` и промежуточных событий `...Requested` нет. Форма напрямую вызывает методы решений.
+
+**Методы решений пока содержат только TODO-комментарии. Обработка и запись изображения в файл ещё не реализованы.**
 
 ## 1. Состояние формы
 
@@ -11,9 +26,9 @@ private Bitmap? sourceBitmap;
 private bool updatingHsvControls;
 ```
 
-`sourceBitmap` хранит исходное изображение. Пока ничего не загружено, там `null`. Знак `?` указывает, что отсутствие объекта допустимо.
+`sourceBitmap` хранит исходное изображение. Пока ничего не загружено, там `null`. Знак `?` означает, что отсутствие объекта допустимо.
 
-`updatingHsvControls` — флаг группового изменения ползунков. Он нужен при сбросе всех трёх значений, чтобы не запускать обработку после каждого отдельного изменения.
+`updatingHsvControls` — флаг группового изменения ползунков. Он подавляет промежуточные пересчёты при сбросе всех трёх значений.
 
 ## 2. Конструктор
 
@@ -24,41 +39,41 @@ public Form1()
 }
 ```
 
-Вызывается при создании окна через `new Form1()`.
+Конструктор вызывается при создании `new Form1()`. Метод `InitializeComponent()` находится в `Form1.Designer.cs`: он создаёт окно, элементы и подключает обработчики.
 
-`InitializeComponent()` создаёт интерфейс и подписывает обработчики на кнопки и ползунки. Этот метод находится во второй части того же класса — в `Form1.Designer.cs`.
+## 3. Где подключены обработчики
 
-## 3. События для ваших алгоритмов
+| Действие | Где подписка в Form1.Designer.cs | Обработчик в Form1.cs | Метод решения |
+|---|---|---|---|
+| «Открыть» | CreateSourcePanel | OpenImageButton_Click | При автообновлении вызывает UpdateHsvPreview. |
+| «Очистить» | CreateSourcePanel | ClearImageButton_Click | Не вызывает решения. |
+| «Рассчитать» на первой вкладке | CreateGrayscaleTab | RunGrayscaleButton_Click | SolveGrayscale |
+| «Рассчитать» на второй вкладке | CreateChannelsTab | RunChannelsButton_Click | SolveChannels |
+| Изменение H/S/V | CreateHsvControls | HsvTrackBar_ValueChanged | При автообновлении: UpdateHsvPreview → SolveHsv. |
+| «Обновить» | CreateHsvControls | UpdateHsvButton_Click | UpdateHsvPreview → SolveHsv |
+| «Сброс» | CreateHsvControls | ResetHsvButton_Click | Обнуляет параметры; при автообновлении пересчитывает HSV. |
+| «Сохранить» | CreateHsvTab | SaveHsvButton_Click | SaveHsvResult |
 
-```csharp
-public event EventHandler? SourceImageChanged;
-public event EventHandler? GrayscaleRequested;
-public event EventHandler? ChannelsRequested;
-public event EventHandler? HsvPreviewRequested;
-public event EventHandler<SaveResultEventArgs>? SaveHsvRequested;
-```
-
-Через эти события форма сообщает внешнему коду, что произошло действие:
-
-| Событие | Значение |
-|---|---|
-| `SourceImageChanged` | Исходник загружен, заменён или очищен. |
-| `GrayscaleRequested` | Нажата кнопка расчёта оттенков серого. |
-| `ChannelsRequested` | Нажата кнопка выделения каналов RGB. |
-| `HsvPreviewRequested` | Нужно обновить результат HSV. |
-| `SaveHsvRequested` | Выбран путь для сохранения результата. |
-
-**Событие само ничего не вычисляет.** Нужно подписать на него метод:
+Пример подписки:
 
 ```csharp
-GrayscaleRequested += HandleGrayscale;
+runGrayscaleButton.Click += RunGrayscaleButton_Click;
 ```
 
-Тогда при вызове события выполнится `HandleGrayscale()`.
+При событии `Click` будет вызван указанный метод. Само название метода его к кнопке не подключает: для этого нужна подписка через `+=`.
 
-На момент подготовки этого гайда подписчиков на эти события в проекте нет: алгоритмы ещё предстоит подключить.
+Параметры обычного обработчика:
 
-## 4. Доступ к исходнику и значениям ползунков
+```csharp
+object? sender, EventArgs e
+```
+
+- `sender` — объект, вызвавший событие;
+- `e` — сведения о событии.
+
+У чекбокса «Автообновление» отдельного обработчика нет. Его `Checked` проверяется при загрузке исходника и изменении ползунков. Включение галочки само по себе пересчёт не запускает.
+
+## 4. Доступ к исходнику и параметрам
 
 ```csharp
 public Bitmap? SourceImage => sourceBitmap;
@@ -67,101 +82,54 @@ public int SaturationOffset => saturationTrackBar.Value;
 public int ValueOffset => valueTrackBar.Value;
 ```
 
-Это свойства только для чтения:
+Это свойства только для чтения. Они возвращают исходник и текущие значения ползунков. H имеет диапазон −180..180 градусов, S/V — −100..100.
 
-- `SourceImage` возвращает исходную картинку;
-- `HueOffset` — текущее значение H, от −180 до +180;
-- `SaturationOffset` — S, от −100 до +100;
-- `ValueOffset` — V, от −100 до +100.
+`SourceImage` возвращает ссылку, а не копию. Исходником управляет форма: внутри решений его не следует изменять или освобождать.
 
-Например, ваш алгоритм может получить параметры так:
+Текущие обработчики передают исходник и параметры в решения аргументами, чтобы входные данные были явно видны в сигнатуре.
 
-```csharp
-var source = SourceImage;
-var hue = HueOffset;
-```
+## 5. Вывод готовых результатов
 
-`SourceImage` возвращает ссылку на исходник формы, а не копию. Освобождением этого изображения управляет форма.
+| Метод | Что принимает |
+|---|---|
+| SetGrayscaleResults | Два полутоновых изображения, разность и две гистограммы. |
+| SetChannelResults | Изображения каналов R/G/B и три гистограммы. |
+| SetHsvResult | Готовый RGB-результат после HSV-коррекции. |
 
-## 5. Методы показа результатов
-
-```csharp
-SetGrayscaleResults(...)
-SetChannelResults(...)
-SetHsvResult(...)
-```
-
-Они принимают **уже вычисленные данные** и передают их элементам интерфейса.
-
-Например, внутри `SetGrayscaleResults()`:
+Например:
 
 ```csharp
 grayscaleFirstPreview.Image = first;
 grayscaleSecondPreview.Image = second;
 differencePreview.Image = difference;
-
 grayscaleFirstHistogram.SetValues(firstHistogram);
 grayscaleSecondHistogram.SetValues(secondHistogram);
 ```
 
-Картинки передаются областям просмотра, массивы частот — гистограммам. Эти элементы сами запрашивают перерисовку.
+Изображения отображаются стандартными `PictureBox` с `SizeMode = Zoom`. Гистограммы отображает `HistogramView`. Эти компоненты сами перерисовываются после передачи данных.
 
-Для гистограммы интенсивности обычно передаётся массив `int[256]`: индекс — интенсивность, значение — количество пикселей с этой интенсивностью.
+Гистограмма обычно представлена массивом `int[256]`: индекс — интенсивность, значение — число пикселей.
 
-`SetChannelResults()` делает то же самое для R, G и B.
+`SetHsvResult()` также включает кнопку сохранения, если результат не `null`.
 
-```csharp
-public void SetHsvResult(Image? result)
-{
-    hsvResultPreview.Image = result;
-    saveHsvButton.Enabled = result is not null;
-}
-```
+Методы вывода не вычисляют результаты и не освобождают прежние изображения. При реализации решений нужно предусмотреть освобождение старых результатов после отсоединения от PictureBox. Изображение, которое ещё показывается, освобождать нельзя.
 
-Этот метод показывает HSV-результат и включает кнопку сохранения, если изображение существует.
+## 6. OpenImageButton_Click — загрузка
 
-Методы отображения не освобождают предыдущие изображения результатов. При подключении вычислений нужно определить, кто хранит эти изображения и вызывает для них `Dispose()`.
+Обработчик открывает `OpenFileDialog`. Если пользователь отменяет выбор, метод заканчивается.
 
-## 6. OpenImageButton_Click() — открытие изображения
-
-Вызывается кнопкой «Открыть».
-
-Сначала создаётся диалог:
-
-```csharp
-using var dialog = new OpenFileDialog
-{
-    CheckFileExists = true,
-    Filter = "Изображения|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff|PNG|*.png|JPEG|*.jpg;*.jpeg|Bitmap|*.bmp|Все файлы|*.*",
-    Title = "Выберите исходное изображение"
-};
-```
-
-`Filter` определяет, какие файлы показывать. `CheckFileExists` требует, чтобы выбранный файл существовал.
-
-```csharp
-if (dialog.ShowDialog(this) != DialogResult.OK)
-{
-    return;
-}
-```
-
-Если пользователь отменил выбор, обработчик заканчивается.
-
-Далее читается изображение:
+После подтверждения:
 
 ```csharp
 using var loadedImage = new Bitmap(dialog.FileName);
 var newBitmap = loadedImage.Select(color => color);
 ```
 
-Метод расширения `Select()` из подключённого пространства имён `FastBitmap` создаёт новый `Bitmap`, обходя пиксели через `LockBits`. Функция `color => color` возвращает каждый цвет без изменения, поэтому получается отдельная копия исходника.
+Метод `Select()` из пространства имён `FastBitmap` создаёт отдельную копию изображения. Функция `color => color` оставляет каждый цвет без изменений. Внутри библиотека использует LockBits и разблокирует изображения перед возвратом результата.
 
-Это реальное использование библиотеки `FastBitmap`: внутри `Select()` исходник и результат временно блокируются для доступа к пикселям, а перед возвратом результата разблокируются.
+Отдельная копия позволяет освободить `loadedImage` и не держать файл заблокированным. `using` освобождает ресурс при выходе из области использования.
 
-Отдельная копия позволяет затем освободить `loadedImage` и не держать открытый файл заблокированным. `using` обеспечивает освобождение соответствующего ресурса при выходе из области его использования.
-
-После этого заменяется старый исходник:
+Замена старого исходника:
 
 ```csharp
 sourcePreview.Image = null;
@@ -170,128 +138,110 @@ sourceBitmap = newBitmap;
 sourcePreview.Image = sourceBitmap;
 ```
 
-По шагам:
+Сначала старое изображение отсоединяется от просмотра, затем освобождается. После этого форма сохраняет и показывает новый исходник.
 
-1. Отсоединяем старое изображение от области просмотра.
-2. Освобождаем его ресурсы, если оно существовало.
-3. Сохраняем новый `Bitmap`.
-4. Передаём его для отображения.
+Обработчик включает кнопки, которым нужен исходник, очищает старые результаты и при включённом автообновлении вызывает `UpdateHsvPreview()`.
 
-Дальше включаются кнопки, которым нужен исходник, и очищаются старые результаты:
+Исключения внутри `try` показываются через сообщение «Ошибка загрузки». Сейчас в этот блок также входит вызов HSV, поэтому исключение будущего решения при загрузке попадёт в то же сообщение.
 
-```csharp
-ClearResultViews();
-SourceImageChanged?.Invoke(this, EventArgs.Empty);
-```
+## 7. ClearImageButton_Click — очистка
 
-`?.Invoke()` вызывает подписчиков, если они есть. Если подписчиков нет, ничего не происходит.
+Метод отсоединяет исходник от PictureBox, освобождает его и записывает `null`. Затем отключает кнопки расчёта и обновления, очищает результаты.
 
-При включённом автообновлении также запрашивается обработка HSV:
+Файл на диске не удаляется. Значения HSV-ползунков сохраняются.
+
+## 8. Вызов первых двух решений
 
 ```csharp
-if (autoPreviewCheckBox.Checked)
+private void RunGrayscaleButton_Click(object? sender, EventArgs e)
 {
-    HsvPreviewRequested?.Invoke(this, EventArgs.Empty);
+    if (sourceBitmap is not null)
+        SolveGrayscale(sourceBitmap, grayscaleFirstHistogram, grayscaleSecondHistogram);
 }
 ```
 
-Блок `catch` показывает сообщение, если внутри `try` возникло исключение. В текущем коде в этот `try` входят и вызовы подписчиков событий, поэтому исключение из будущего алгоритма также может попасть в сообщение «Ошибка загрузки».
-
-## 7. ClearImageButton_Click() — очистка
-
-Вызывается кнопкой «Очистить».
-
-Он:
-
-- убирает исходник из просмотра;
-- освобождает `sourceBitmap`;
-- записывает в него `null`;
-- отключает кнопки расчёта и обновления;
-- очищает результаты;
-- вызывает `SourceImageChanged`.
-
-Файл на диске не удаляется. Очищается только состояние приложения. Значения HSV-ползунков сохраняются.
-
-## 8. HsvTrackBar_ValueChanged() — изменение ползунков
-
-Один обработчик используется для всех трёх ползунков.
-
-Сначала обновляет подписи:
+Проверка не позволяет вызвать решение без исходника. Метод `SolveGrayscale(Bitmap source, HistogramView firstHistogramView, HistogramView secondHistogramView)` находится в `Form1.Grayscale.cs`. Он получает исходник и два экранных компонента гистограмм. В нём нужно реализовать две формулы, разность и подсчёт частот, затем вывести результаты в указанном порядке (вызов SetGrayscaleResults без массивов очищает прежние гистограммы):
 
 ```csharp
-hueValueLabel.Text = FormatSignedValue(hueTrackBar.Value, "°");
-saturationValueLabel.Text = FormatSignedValue(saturationTrackBar.Value, "%");
-valueValueLabel.Text = FormatSignedValue(valueTrackBar.Value, "%");
+// Имена переменных ниже обозначают результаты вашего алгоритма.
+SetGrayscaleResults(first, second, difference);
+firstHistogramView.SetValues(firstHistogram);
+secondHistogramView.SetValues(secondHistogram);
 ```
 
-Затем решает, нужно ли запрашивать обработку:
+`RunChannelsButton_Click()` аналогично вызывает `SolveChannels(sourceBitmap)` из `Form1.Channels.cs`. После выделения каналов и подсчёта гистограмм:
+
+```csharp
+SetChannelResults(red, green, blue, redHistogram, greenHistogram, blueHistogram);
+```
+
+Дополнительные подписки для подключения решений больше не нужны: достаточно заполнить тела этих методов.
+
+## 9. HSV и ползунки
+
+`HsvTrackBar_ValueChanged()` обновляет числовые подписи с помощью `FormatSignedValue()`.
+
+Затем проверяет:
 
 ```csharp
 if (!updatingHsvControls &&
     sourceBitmap is not null &&
     autoPreviewCheckBox.Checked)
 {
-    HsvPreviewRequested?.Invoke(this, EventArgs.Empty);
+    UpdateHsvPreview();
 }
 ```
 
-Обработка запрашивается, если одновременно:
+То есть не идёт групповой сброс, исходник существует и автообновление включено.
 
-- не выполняется групповой сброс;
-- есть исходное изображение;
-- включено автообновление.
+Общая точка вызова решения:
 
-Этот обработчик срабатывает и при движении мышью, и при программном изменении `Value`, в том числе после двойного клика со сбросом. Если значение уже равно нулю и остаётся нулевым, само присваивание не вызывает `ValueChanged`.
+```csharp
+private void UpdateHsvPreview()
+{
+    if (sourceBitmap is not null)
+        SolveHsv(sourceBitmap, HueOffset, SaturationOffset, ValueOffset);
+}
+```
 
-Распознавание двойного клика находится в `ResettableTrackBar` в [UiControls.cs](UiControls.cs), а не в форме.
+Её вызывают кнопка «Обновить», автообновление ползунков и загрузка исходника при включённом автообновлении.
 
-## 9. ResetHsvButton_Click() — сброс всех параметров
+В `Form1.Hsv.cs` метод `SolveHsv()` получает исходник и три смещения. Каждый пересчёт должен начинаться с исходника, чтобы изменения не накапливались от предыдущего результата. После RGB → HSV → изменение параметров → RGB нужно вызвать `SetHsvResult(result)`.
+
+`ValueChanged` срабатывает при изменении значения мышью или программно. Распознавание двойного клика реализовано в `ResettableTrackBar` в `UiControls.cs`. Он обнуляет `Value`, после чего срабатывает обычный обработчик формы. Если значение уже нулевое и не изменилось, событие не возникает.
+
+## 10. ResetHsvButton_Click — общий сброс
 
 ```csharp
 updatingHsvControls = true;
-
 hueTrackBar.Value = 0;
 saturationTrackBar.Value = 0;
 valueTrackBar.Value = 0;
-
 updatingHsvControls = false;
 HsvTrackBar_ValueChanged(sender, e);
 ```
 
-Пока флаг равен `true`, изменения значений обновляют подписи, но не вызывают обработку.
+Флаг подавляет промежуточные пересчёты. После сброса обработчик вызывается ещё раз для одного общего обновления.
 
-После обнуления всех ползунков обработчик вызывается ещё раз — теперь он может отправить **один общий запрос** на пересчёт.
+При выключенном автообновлении меняются только значения и подписи. Для расчёта нужно нажать «Обновить».
 
-Если автообновление выключено, пересчёт нужно запросить кнопкой «Обновить».
+## 11. SaveHsvButton_Click — сохранение
 
-## 10. SaveHsvButton_Click() — выбор места сохранения
-
-Создаёт `SaveFileDialog` с вариантами PNG, JPEG и BMP.
+Сначала проверяет, есть ли изображение результата. Если его нет — выходит. Затем открывает SaveFileDialog с PNG, JPEG и BMP.
 
 После подтверждения:
 
 ```csharp
-SaveHsvRequested?.Invoke(
-    this,
-    new SaveResultEventArgs(dialog.FileName));
+SaveHsvResult(result, dialog.FileName);
 ```
 
-Передаёт выбранный путь подписчику события.
+Метод `SaveHsvResult(Image result, string fileName)` находится в `Form1.Hsv.cs`. Сейчас там TODO: нужно записать готовое RGB-изображение в файл, выбрав формат по расширению. Сам диалог файл не записывает.
 
-**Записи файла в этом методе пока нет.** Её должен выполнить ваш обработчик `SaveHsvRequested`, выбрав формат изображения в соответствии с расширением файла.
+Переданное изображение ещё отображается: в методе сохранения его освобождать нельзя.
 
-Для передачи пути в конце файла объявлен небольшой класс:
+Класс `SaveResultEventArgs` удалён: путь передаётся обычным аргументом метода.
 
-```csharp
-public sealed class SaveResultEventArgs(string fileName) : EventArgs
-{
-    public string FileName { get; } = fileName;
-}
-```
-
-В обработчике выбранный путь будет доступен как `e.FileName`.
-
-## 11. Два вспомогательных метода
+## 12. Служебные методы
 
 ```csharp
 private void ClearResultViews()
@@ -302,104 +252,22 @@ private void ClearResultViews()
 }
 ```
 
-Очищает все результаты через уже существующие методы отображения. Передача `null` убирает картинки и данные гистограмм.
+Очищает изображения и гистограммы, а также отключает сохранение.
 
-```csharp
-private static string FormatSignedValue(int value, string suffix)
-    => $"{(value > 0 ? "+" : string.Empty)}{value}{suffix}";
-```
+`FormatSignedValue()` формирует подписи: `15, "°"` → `+15°`, `-20, "%"` → `-20%`, `0, "%"` → `0%`.
 
-Формирует подпись числа:
+`Dispose()` в `Form1.Designer.cs` освобождает контейнер компонентов и исходник, затем вызывает освобождение базовой формы.
 
-```text
-15, "°"  → "+15°"
--20, "%" → "-20%"
-0, "%"   → "0%"
-```
-
-## 12. Где подписаны обработчики
-
-Подписки находятся в `Form1.Designer.cs`, рядом с созданием элементов:
-
-| Элемент | Где создаётся подписка | Обработчик или событие |
-|---|---|---|
-| «Открыть» | `CreateSourcePanel()` | `OpenImageButton_Click` |
-| «Очистить» | `CreateSourcePanel()` | `ClearImageButton_Click` |
-| «Рассчитать» для оттенков серого | `CreateGrayscaleTab()` | Лямбда вызывает `GrayscaleRequested` |
-| «Рассчитать» для каналов RGB | `CreateChannelsTab()` | Лямбда вызывает `ChannelsRequested` |
-| «Сохранить» | `CreateHsvTab()` | `SaveHsvButton_Click` |
-| Все три HSV-ползунка | `CreateHsvControls()` | `HsvTrackBar_ValueChanged` |
-| «Обновить» | `CreateHsvControls()` | Лямбда вызывает `HsvPreviewRequested` |
-| «Сброс» | `CreateHsvControls()` | `ResetHsvButton_Click` |
-
-Например:
-
-```csharp
-openImageButton.Click += OpenImageButton_Click;
-```
-
-Означает: при событии `Click` у этой кнопки вызвать `OpenImageButton_Click`. Само имя метода не подключает его к кнопке: нужна подписка через `+=`.
-
-Обычный обработчик имеет параметры:
-
-```csharp
-object? sender, EventArgs e
-```
-
-- `sender` — объект, вызвавший событие;
-- `e` — сведения о событии.
-
-Для кнопки расчёта используется короткий обработчик без отдельного имени:
-
-```csharp
-runGrayscaleButton.Click +=
-    (_, _) => GrayscaleRequested?.Invoke(this, EventArgs.Empty);
-```
-
-`(_, _)` означает, что параметры нажатия здесь не используются. Обработчик только передаёт запрос подписчикам формы.
-
-У чекбокса «Автообновление» отдельной подписки нет. Его состояние проверяется при загрузке исходника и изменении ползунков. Само включение галочки немедленный пересчёт не запускает.
-
-## 13. Как подключить решение
-
-Пример ниже показывает место подключения. Сам алгоритм в нём намеренно не реализован.
-
-В конструкторе после создания интерфейса:
-
-```csharp
-public Form1()
-{
-    InitializeComponent();
-    GrayscaleRequested += HandleGrayscale;
-}
-```
-
-В том же классе:
-
-```csharp
-private void HandleGrayscale(object? sender, EventArgs e)
-{
-    if (SourceImage is null)
-        return;
-
-    // Вызвать ваш алгоритм для SourceImage.
-    // Затем передать вычисленные данные:
-    // SetGrayscaleResults(gray1, gray2, difference, hist1, hist2);
-}
-```
-
-Последовательность работы:
+## 13. Последовательность работы
 
 ```text
-Кнопка «Рассчитать»
-    → событие Click
-    → вызов GrayscaleRequested
-    → ваш обработчик HandleGrayscale
-    → ваш алгоритм получает SourceImage
-    → SetGrayscaleResults получает результат
-    → элементы просмотра запрашивают перерисовку
+«Рассчитать» на первой вкладке
+    → RunGrayscaleButton_Click
+    → проверка исходника
+    → SolveGrayscale в Form1.Grayscale.cs
+    → ваш алгоритм
+    → SetGrayscaleResults
+    → PictureBox и HistogramView показывают результаты
 ```
 
-Аналогично подключаются `ChannelsRequested`, `HsvPreviewRequested` и `SaveHsvRequested`.
-
-События вызываются синхронно в потоке интерфейса. Если ваш обработчик долго считает результат, окно на это время перестаёт отвечать на действия пользователя. Само использование событий не переносит вычисления в фон.
+Все текущие вызовы синхронные и выполняются в потоке интерфейса. Долгие вычисления внутри решения будут задерживать реакцию окна. Разделение по файлам само по себе не переносит обработку в фон.
