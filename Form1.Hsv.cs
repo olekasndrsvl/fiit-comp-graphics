@@ -32,45 +32,65 @@ public partial class Form1
         double min = Math.Min(r, Math.Min(g, b));
         double delta = max - min;
 
-        value = max; // Яркость
-        saturation = (max == 0) ? 0 : delta / max; // Насыщенность - доля цветности от яркости, или 0(черный) по умолчанию
+        value = max; 
+        saturation = (max == 0) ? 0 : delta / max; 
 
-        // Тон разбираем по основанию конуса, показано на рисунке
         if (delta == 0)
         {
             hue = 0;
-            return;
+            return; 
         }
-        else if (max == r)
-            hue = 60 * (((g - b) / delta) % 6); // именно для сектора 0 - 60
-        else if (max == g)
-            hue = 60 * ((b - r) / delta + 2);
-        else hue = 60 * ((r - g) / delta + 4);
 
-        if (hue < 0) hue += 360;
+        if (max == r) 
+        {
+            if (g >= b) hue = 60 * ((g - b) / delta) + 0;
+            else hue = 60 * ((g - b) / delta) + 360;
+        }
+        else if (max == g) hue = 60 * ((b - r) / delta) + 120;
+
+        else hue = 60 * ((r - g) / delta) + 240;
     }
 
     private static (byte R, byte G, byte B) HsvToRgb(double hue, double saturation, double value)
     {
-        hue = ((hue % 360) + 360) % 360; // Приводим к виду [0, 360), дважды берем модуль из-за реализации % в c#
+        hue = ((hue % 360) + 360) % 360;
+        // Определяем сектор, f принимает значения от 0 до 1 (степень перехода от одного цвета к другому)
+        int hi = (int)Math.Floor(hue / 60.0) % 6;
+        double f = (hue / 60.0) - Math.Floor(hue / 60.0);
 
-        double chroma = value * saturation; // чистота цвета, то же, что и delta
-        double x = chroma * (1 - Math.Abs((hue / 60.0) % 2 - 1));
-        double m = value - chroma; // серая добавка(минимум)
+        double p = value * (1 - saturation); // самый темный
+        double q = value * (1 - f * saturation); // ближе к концу сектора
+        double t = value * (1 - (1 - f) * saturation); // ближе к началу
 
-        double r1, g1, b1; // Определение сектора
+        double r = 0, g = 0, b = 0;
 
-        if (hue < 60) { r1 = chroma; g1 = x; b1 = 0; }
-        else if (hue < 120) { r1 = x; g1 = chroma; b1 = 0; }
-        else if (hue < 180) { r1 = 0; g1 = chroma; b1 = x; }
-        else if (hue < 240) { r1 = 0; g1 = x; b1 = chroma; }
-        else if (hue < 300) { r1 = x; g1 = 0; b1 = chroma; }
-        else { r1 = chroma; g1 = 0; b1 = x; }
+        switch (hi)
+        {
+            case 0: 
+                r = value; g = t; b = p;
+                break;
+            case 1: 
+                r = q; g = value; b = p;
+                break;
+            case 2: 
+                r = p; g = value; b = t;
+                break;
+            case 3: 
+                r = p; g = q; b = value;
+                break;
+            case 4: 
+                r = t; g = p; b = value;
+                break;
+            case 5: 
+                r = value; g = p; b = q;
+                break;
+        }
 
-        byte r = (byte)Math.Clamp(Math.Round((r1 + m) * 255), 0, 255);
-        byte g = (byte)Math.Clamp(Math.Round((g1 + m) * 255), 0, 255);
-        byte b = (byte)Math.Clamp(Math.Round((b1 + m) * 255), 0, 255);
-        return (r, g, b);
+        byte rByte = (byte)Math.Clamp(Math.Round(r * 255), 0, 255);
+        byte gByte = (byte)Math.Clamp(Math.Round(g * 255), 0, 255);
+        byte bByte = (byte)Math.Clamp(Math.Round(b * 255), 0, 255);
+
+        return (rByte, gByte, bByte);
     }
 
     private void SaveHsvResult(Image result, string fileName)
