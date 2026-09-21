@@ -34,13 +34,6 @@ public partial class Form1
         
         image.Dispose();
         
-        grayscaleFirstPreview.Image = gray1;
-        grayscaleSecondPreview.Image = gray2;
-        differencePreview.Image = grayDiff;
-       
-       
-        firstHistogramView.SetValues(firstHistogram);
-        secondHistogramView.SetValues(secondHistogram);
-        
+       SetGrayscaleResults(gray1, gray2, grayDiff, firstHistogram, secondHistogram);
     }
 }
