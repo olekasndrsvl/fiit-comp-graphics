@@ -1,26 +1,46 @@
 using FastBitmap;
 
 namespace Lab2;
-
+using FastBitmap;
 public partial class Form1
 {
     private void SolveGrayscale(Bitmap source, HistogramView firstHistogramView, HistogramView secondHistogramView)
     {
-        // TODO: две формулы оттенков серого, разность и две гистограммы.
-        // source — исходник, его не изменяем и не освобождаем.
-        // Для обработки доступны source.Select(...), source.ForEach(...)
-        // и new FastBitmap.FastBitmap(source) внутри using.
-        //
-        // Пример вывода после вычислений:
-        // first и second — Bitmap с результатами двух формул, difference — Bitmap разности.
-        // firstHistogram и secondHistogram — int[256]: индекс = интенсивность, значение = число пикселей.
-        //
-        // SetGrayscaleResults(first, second, difference);
-        // firstHistogramView.SetValues(firstHistogram);
-        // secondHistogramView.SetValues(secondHistogram);
-        //
-        // Порядок важен: SetGrayscaleResults без массивов сначала очищает гистограммы.
-        // Выводить после выхода из using с FastBitmap, когда изображения разблокированы.
-        // Переданные Bitmap не освобождать, пока они отображаются в PictureBox.
+        var image = new FastBitmap(source);
+        
+        int[] firstHistogram = new int[256];
+        int[] secondHistogram = new int[256];
+        
+        Bitmap gray1 = image.Select(color =>
+        {
+            int intensity = (int)(0.299 * color.R + 0.587 * color.G + 0.114 * color.B);
+            firstHistogram[intensity]++;
+            return Color.FromArgb(color.A, intensity, intensity, intensity);
+        });
+        
+        Bitmap gray2 = image.Select(color =>
+        {
+            int intensity = (int)(0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B);
+            secondHistogram[intensity]++;
+            return Color.FromArgb(color.A, intensity, intensity, intensity);
+        });
+        Bitmap grayDiff = image.Select(color =>
+        {
+            double first = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B;
+            double second = 0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B;
+            int intensity = (int)Math.Abs(first - second);
+            return Color.FromArgb(color.A, intensity, intensity, intensity);
+        });
+        
+        image.Dispose();
+        
+        grayscaleFirstPreview.Image = gray1;
+        grayscaleSecondPreview.Image = gray2;
+        differencePreview.Image = grayDiff;
+       
+       
+        firstHistogramView.SetValues(firstHistogram);
+        secondHistogramView.SetValues(secondHistogram);
+        
     }
 }
