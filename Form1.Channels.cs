@@ -6,36 +6,44 @@ public partial class Form1
 {
     private void SolveChannels(Bitmap source)
     {
-        var red = new Bitmap(source.Width, source.Height);
-        var green = new Bitmap(source.Width, source.Height);
-        var blue = new Bitmap(source.Width, source.Height);
+        var image = new FastBitmap.FastBitmap(source);
 
-        var redHistogram = new int[256];
-        var greenHistogram = new int[256];
-        var blueHistogram = new int[256];
+        // Гистограммы значений каждого цветового канала
+        int[] redHistogram = new int[256];
+        int[] greenHistogram = new int[256];
+        int[] blueHistogram = new int[256];
 
-        using (var fastSource = new FastBitmap.FastBitmap(source))
-        using (var fastRed = new FastBitmap.FastBitmap(red))
-        using (var fastGreen = new FastBitmap.FastBitmap(green))
-        using (var fastBlue = new FastBitmap.FastBitmap(blue))
+        // Изображение только с красным каналом
+        Bitmap red = image.Select(color =>
         {
-            for (var y = 0; y < source.Height; y++)
-                for (var x = 0; x < source.Width; x++)
-                {
-                    var color = fastSource[x, y];
+            redHistogram[color.R]++;
+            return Color.FromArgb(color.A, color.R, 0, 0);
+        });
 
-                    redHistogram[color.R]++;
-                    greenHistogram[color.G]++;
-                    blueHistogram[color.B]++;
+        // Изображение только с зелёным каналом
+        Bitmap green = image.Select(color =>
+        {
+            greenHistogram[color.G]++;
+            return Color.FromArgb(color.A, 0, color.G, 0);
+        });
 
-                    fastRed[x, y] = Color.FromArgb(color.A, color.R, 0, 0);
-                    fastGreen[x, y] = Color.FromArgb(color.A, 0, color.G, 0);
-                    fastBlue[x, y] = Color.FromArgb(color.A, 0, 0, color.B);
-                }
-        }
+        // Изображение только с синим каналом
+        Bitmap blue = image.Select(color =>
+        {
+            blueHistogram[color.B]++;
+            return Color.FromArgb(color.A, 0, 0, color.B);
+        });
 
+        // Освобождаем исходное изображение
+        image.Dispose();
 
-        SetChannelResults(red, green, blue,
-                          redHistogram, greenHistogram, blueHistogram);
+        // Передаём изображения каналов и их гистограммы
+        SetChannelResults(
+            red,
+            green,
+            blue,
+            redHistogram,
+            greenHistogram,
+            blueHistogram);
     }
 }
