@@ -6,18 +6,44 @@ public partial class Form1
 {
     private void SolveChannels(Bitmap source)
     {
-        // TODO: выделить R, G, B и подсчитать три гистограммы int[256].
-        // source — исходник, его не изменяем и не освобождаем.
-        //
-        // Пример вывода после вычислений:
-        // red, green, blue — три Bitmap с выделенными каналами.
-        // redHistogram, greenHistogram, blueHistogram — три массива int[256].
-        // Например, redHistogram[128] — число пикселей исходника со значением R = 128.
-        //
-        // SetChannelResults(red, green, blue, redHistogram, greenHistogram, blueHistogram);
-        //
-        // Метод показывает все три изображения и обновляет их гистограммы.
-        // Выводить после выхода из using с FastBitmap, когда изображения разблокированы.
-        // Переданные Bitmap не освобождать, пока они отображаются в PictureBox.
+        var image = new FastBitmap.FastBitmap(source);
+
+        // Гистограммы значений каждого цветового канала
+        int[] redHistogram = new int[256];
+        int[] greenHistogram = new int[256];
+        int[] blueHistogram = new int[256];
+
+        // Изображение только с красным каналом
+        Bitmap red = image.Select(color =>
+        {
+            redHistogram[color.R]++;
+            return Color.FromArgb(color.A, color.R, 0, 0);
+        });
+
+        // Изображение только с зелёным каналом
+        Bitmap green = image.Select(color =>
+        {
+            greenHistogram[color.G]++;
+            return Color.FromArgb(color.A, 0, color.G, 0);
+        });
+
+        // Изображение только с синим каналом
+        Bitmap blue = image.Select(color =>
+        {
+            blueHistogram[color.B]++;
+            return Color.FromArgb(color.A, 0, 0, color.B);
+        });
+
+        // Освобождаем исходное изображение
+        image.Dispose();
+
+        // Передаём изображения каналов и их гистограммы
+        SetChannelResults(
+            red,
+            green,
+            blue,
+            redHistogram,
+            greenHistogram,
+            blueHistogram);
     }
 }
