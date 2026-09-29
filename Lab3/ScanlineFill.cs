@@ -4,7 +4,7 @@ public static class ScanlineFill
 {
     public static void FillColor(Bitmap image, Point seed, Color color)
     {
-        if(image is null) throw new ArgumentNullException(nameof(image));
+        if (image is null) throw new ArgumentNullException(nameof(image));
 
         if (seed.X < 0 || seed.Y < 0 || seed.X >= image.Width || seed.Y >= image.Height)
             return;
@@ -28,27 +28,28 @@ public static class ScanlineFill
 
         int left = x;
         // Пока другой цвет и не дошли до границы
-        while(left - 1 >= 0 && image.GetPixel(left - 1, y).ToArgb() == target.ToArgb())
+        while (left - 1 >= 0 && image.GetPixel(left - 1, y).ToArgb() == target.ToArgb())
         {
             left--;
         }
 
         int right = x;
-        while(right + 1 < image.Width && image.GetPixel(right + 1,y).ToArgb() == target.ToArgb())
+        while (right + 1 < image.Width && image.GetPixel(right + 1, y).ToArgb() == target.ToArgb())
         {
             right++;
         }
 
         // Закрашиваем полученную линию
-        for (int i = left; i <= right; i++) {
+        for (int i = left; i <= right; i++)
+        {
             image.SetPixel(i, y, color);
         }
 
         // Обработка линий сверху точки
-        if(y > 0)
+        if (y > 0)
         {
             int i = left;
-            while(i <= right)
+            while (i <= right)
             {
                 if (image.GetPixel(i, y - 1).ToArgb() == target.ToArgb())
                 {
@@ -64,7 +65,7 @@ public static class ScanlineFill
             }
         }
 
-        if(y < image.Height - 1)
+        if (y < image.Height - 1)
         {
             int i = left;
             while (i <= right)
@@ -79,12 +80,12 @@ public static class ScanlineFill
                         i++;
                     }
                 }
-                else i++;       
+                else i++;
             }
         }
     }
 
-    public static void FillPattern(Bitmap image, Point seed, Bitmap pattern)
+    public static void FillPattern(Bitmap image, Point seed, Bitmap pattern, Color boundaryColor)
     {
         if (image is null) throw new ArgumentNullException(nameof(image));
         if (pattern is null) throw new ArgumentNullException(nameof(pattern));
@@ -92,18 +93,19 @@ public static class ScanlineFill
         if (seed.X < 0 || seed.Y < 0 || seed.X >= image.Width || seed.Y >= image.Height)
             return;
 
-        Color target = image.GetPixel(seed.X, seed.Y);
+        if (image.GetPixel(seed.X, seed.Y).ToArgb() == boundaryColor.ToArgb())
+            return;
 
         /*
-        Маска: был ли пиксель уже обработан. Без неё нельзя — цвет после заливки
-        может случайно совпасть с target, и получим бесконечную рекурсию.
+        Маска: был ли пиксель уже обработан.
+        Нужна для того, чтобы рекурсия не ходила по одним и тем же пикселям.
         */
         bool[,] visited = new bool[image.Width, image.Height];
 
-        FillSeriesPattern(image, pattern, seed, seed.X, seed.Y, target, visited);
+        FillSeriesPattern(image, pattern, seed,seed.X, seed.Y, boundaryColor, visited);
     }
 
-    private static void FillSeriesPattern(Bitmap image, Bitmap pattern, Point seed, int x, int y, Color target, bool[,] visited)
+    private static void FillSeriesPattern(Bitmap image, Bitmap pattern, Point seed, int x, int y, Color boundaryColor, bool[,] visited)
     {
         if (x < 0 || x >= image.Width || y < 0 || y >= image.Height)
             return;
@@ -111,20 +113,19 @@ public static class ScanlineFill
         if (visited[x, y])
             return;
 
-        if (image.GetPixel(x, y).ToArgb() != target.ToArgb())
+        if (image.GetPixel(x, y).ToArgb() == boundaryColor.ToArgb())
             return;
 
         int left = x;
         while (left - 1 >= 0 && !visited[left - 1, y] &&
-               image.GetPixel(left - 1, y).ToArgb() == target.ToArgb())
+               image.GetPixel(left - 1, y).ToArgb() != boundaryColor.ToArgb())
         {
             left--;
         }
 
-        
         int right = x;
         while (right + 1 < image.Width && !visited[right + 1, y] &&
-               image.GetPixel(right + 1, y).ToArgb() == target.ToArgb())
+               image.GetPixel(right + 1, y).ToArgb() != boundaryColor.ToArgb())
         {
             right++;
         }
@@ -141,14 +142,13 @@ public static class ScanlineFill
             int i = left;
             while (i <= right)
             {
-                if (!visited[i, y - 1] &&
-                    image.GetPixel(i, y - 1).ToArgb() == target.ToArgb())
+                if (!visited[i, y - 1] && image.GetPixel(i, y - 1).ToArgb() != boundaryColor.ToArgb())
                 {
-                    FillSeriesPattern(image, pattern, seed, i, y - 1, target, visited);
+                    FillSeriesPattern(image, pattern, seed,i, y - 1, boundaryColor, visited);
 
                     // Пропускаем уже обработанную серию
                     while (i <= right && (visited[i, y - 1] ||
-                            image.GetPixel(i, y - 1).ToArgb() != target.ToArgb()))
+                            image.GetPixel(i, y - 1).ToArgb() == boundaryColor.ToArgb()))
                     {
                         i++;
                     }
@@ -163,12 +163,13 @@ public static class ScanlineFill
             int i = left;
             while (i <= right)
             {
-                if (!visited[i, y + 1] && image.GetPixel(i, y + 1).ToArgb() == target.ToArgb())
+                if (!visited[i, y + 1] &&
+                    image.GetPixel(i, y + 1).ToArgb() != boundaryColor.ToArgb())
                 {
-                    FillSeriesPattern(image, pattern, seed, i, y + 1, target, visited);
+                    FillSeriesPattern(image, pattern, seed, i, y + 1, boundaryColor, visited);
 
                     while (i <= right && (visited[i, y + 1] ||
-                            image.GetPixel(i, y + 1).ToArgb() != target.ToArgb()))
+                            image.GetPixel(i, y + 1).ToArgb() == boundaryColor.ToArgb()))
                     {
                         i++;
                     }
