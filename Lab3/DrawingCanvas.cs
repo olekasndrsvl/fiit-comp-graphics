@@ -1,5 +1,5 @@
 namespace Lab3;
-
+// умная обертка над Panel для работы с пикселями и изображениями
 public sealed class DrawingCanvas : Panel
 {
     private Bitmap bitmap = new(1, 1);
