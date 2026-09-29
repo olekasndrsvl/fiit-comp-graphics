@@ -117,6 +117,7 @@ public static class ScanlineFill
             return;
 
         int left = x;
+
         while (left - 1 >= 0 && !visited[left - 1, y] &&
                image.GetPixel(left - 1, y).ToArgb() != boundaryColor.ToArgb())
         {
