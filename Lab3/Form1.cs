@@ -78,7 +78,14 @@ public partial class Form1 : Form
             switch (fillMode.SelectedIndex)
             {
                 case 1: ScanlineFill.FillColor(fillCanvas.Image, e.Location, fillColor); break;
-                case 2: ScanlineFill.FillPattern(fillCanvas.Image, e.Location, pattern!); break;
+                case 2:
+                    ScanlineFill.FillPattern(
+                        fillCanvas.Image,
+                        e.Location,
+                        pattern!,
+                        boundaryColor
+                    );
+                    break;
                 case 3:
                     using (var image = new FastBitmap.FastBitmap(fillCanvas.Image))
                     {
