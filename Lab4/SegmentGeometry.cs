@@ -12,19 +12,18 @@ public sealed class SegmentGeometryService
         var c = new Vector2(second.A.X, second.A.Y);
         var d = new Vector2(second.B.X, second.B.Y);
 
-        var dc = d - c; // вектор направления отрезка CD
+        var dc = d - c; 
 
-        var n = new Vector2(-dc.Y, dc.X); // нормаль к CD
+        var n = new Vector2(-dc.Y, dc.X); 
 
-        var ab = b - a; // вектор первого ребра
+        var ab = b - a; 
 
         var den = Vector2.Dot(n, ab);
 
-        // Если den равен нулю, то ребра параллельны и не пересекаются
         if (MathF.Abs(den) < 1e-6f)
             return null;
 
-        var num = Vector2.Dot(n, a - c); // (a - c) - положение точки A относительно прямой CD
+        var num = Vector2.Dot(n, a - c);
 
         var t = -num / den;
         if (t < 0 || t > 1)
@@ -32,13 +31,8 @@ public sealed class SegmentGeometryService
 
         var Pt = a + t * ab;
 
-        // Проверяем, что точка лежит и на втором отрезке.
         var cd = d - c;
 
-        /*
-         Вектор Pt-c должен быть коллинеарен прямой линией cd => Pt - c = cd * u,
-         u - параметр, показывающий положение точки Pt относительно отрезка CD.
-        */
         var u = Vector2.Dot(Pt - c, cd)
             / Vector2.Dot(cd, cd);
         if (u < 0 || u > 1)
@@ -56,7 +50,6 @@ public sealed class SegmentGeometryService
         var ab = b - a;
         var ap = p - a;
 
-        // По сути просто векторное произведение
         var cross = ab.X * ap.Y - ab.Y * ap.X;
 
         if (MathF.Abs(cross) < 1e-6f)
