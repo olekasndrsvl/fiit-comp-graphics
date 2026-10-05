@@ -2,16 +2,7 @@ using System.Drawing.Drawing2D;
 
 namespace Lab4;
 
-public interface IAffineTransformService
-{
-    Matrix CreateTranslation(float dx, float dy);
-    Matrix CreateRotation(float degrees, PointF pivot);
-    Matrix CreateScaling(float sx, float sy, PointF pivot);
-    PointF GetCenter(PolygonShape polygon);
-    void Apply(PolygonShape polygon, Matrix transform);
-}
-
-public sealed class AffineTransformService : IAffineTransformService
+public sealed class AffineTransformService
 {
     // TODO 1: implement translation, rotation about a pivot, and scaling about a pivot as matrices.
     public Matrix CreateTranslation(float dx, float dy)

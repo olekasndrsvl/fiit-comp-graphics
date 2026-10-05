@@ -1,11 +1,6 @@
 namespace Lab4;
 
-public interface IPolygonContainmentService
-{
-    bool ContainsPoint(PolygonShape polygon, PointF point);
-}
-
-public sealed class PolygonContainmentService : IPolygonContainmentService
+public sealed class PolygonContainmentService
 {
     // TODO 2: implement point-in-polygon classification, including boundary and degenerate polygons.
     // The UI calls this repeatedly while retaining the scene and the active query mode.

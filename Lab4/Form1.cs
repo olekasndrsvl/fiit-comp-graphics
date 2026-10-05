@@ -15,9 +15,9 @@ public partial class Form1 : Form
     private Tool tool = Tool.Draw;
     private readonly List<PointF> edgeClicks = [];
     private (PointF A, PointF B)? intersectionReference;
-    private readonly IAffineTransformService affine = new AffineTransformService();
-    private readonly IPolygonContainmentService containment = new PolygonContainmentService();
-    private readonly ISegmentGeometryService segmentGeometry = new SegmentGeometryService();
+    private readonly AffineTransformService affine = new();
+    private readonly PolygonContainmentService containment = new();
+    private readonly SegmentGeometryService segmentGeometry = new();
 
     public Form1() => InitializeComponent();
 

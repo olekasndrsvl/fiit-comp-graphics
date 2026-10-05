@@ -1,12 +1,6 @@
 namespace Lab4;
 
-public interface ISegmentGeometryService
-{
-    PointF? FindIntersection(Segment first, Segment second);
-    PointSide ClassifyPoint(Segment edge, PointF point);
-}
-
-public sealed class SegmentGeometryService : ISegmentGeometryService
+public sealed class SegmentGeometryService
 {
     // TODO 3: compute segment intersection, handling parallel and collinear cases.
     public PointF? FindIntersection(Segment first, Segment second)
