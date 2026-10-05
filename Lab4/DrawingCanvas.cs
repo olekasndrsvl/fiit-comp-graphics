@@ -51,7 +51,7 @@ public sealed class DrawingCanvas : Panel
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
-        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        // e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         for (var i = 0; i < Polygons.Count; i++)
             DrawPolygon(e.Graphics, Polygons[i], i == SelectedIndex, false);
 
