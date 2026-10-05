@@ -8,7 +8,8 @@ partial class Form1
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) components?.Dispose();
+        if (disposing)
+            components?.Dispose();
         base.Dispose(disposing);
     }
 

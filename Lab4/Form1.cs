@@ -5,7 +5,14 @@ namespace Lab4;
 
 public partial class Form1 : Form
 {
-    private enum Tool { Draw, Intersect, Inside, Side, Pivot }
+    private enum Tool
+    {
+        Draw,
+        Intersect,
+        Inside,
+        Side,
+        Pivot
+    }
 
     private DrawingCanvas canvas = null!;
     private ComboBox polygonPicker = null!;
@@ -133,9 +140,7 @@ public partial class Form1 : Form
     private void Canvas_MouseDown(object? sender, MouseEventArgs e)
     {
         if (e.Button != MouseButtons.Left || !canvas.ClientRectangle.Contains(e.Location))
-        {
             return;
-        }
 
         var point = new PointF(e.X, e.Y);
         switch (tool)
@@ -160,16 +165,11 @@ public partial class Form1 : Form
                 canvas.QueryPoints.Add(point);
                 if (SelectedPolygon() is { } polygon)
                 {
-                    try
-                    {
-                        var contains = containment.ContainsPoint(polygon, point);
-                        var relation = contains ? "внутри" : "снаружи";
-                        SetStatus($"Точка ({e.X}, {e.Y}): {relation} полигона «{polygon.Name}». Щёлкните следующую точку.");
-                    }
-                    catch (NotImplementedException)
-                    {
-                        SetStatus("TODO: проверка принадлежности точки полигону");
-                    }
+
+                    var contains = containment.ContainsPoint(polygon, point);
+                    var relation = contains ? "внутри" : "снаружи";
+                    SetStatus($"Точка ({e.X}, {e.Y}): {relation} полигона «{polygon.Name}». Щёлкните следующую точку.");
+
                 }
                 else
                 {
@@ -206,15 +206,10 @@ public partial class Form1 : Form
 
         canvas.QueryPoints.Add(point);
         var edge = canvas.ReferenceEdge.Value;
-        try
-        {
-            var side = segmentGeometry.ClassifyPoint(new Segment(edge.A, edge.B), point);
-            SetStatus($"Точка ({point.X}, {point.Y}): {SideText(side)}. Щёлкните следующую точку.");
-        }
-        catch (NotImplementedException)
-        {
-            SetStatus("TODO: классификация точки относительно ребра");
-        }
+
+        var side = segmentGeometry.ClassifyPoint(new Segment(edge.A, edge.B), point);
+        SetStatus($"Точка ({point.X}, {point.Y}): {SideText(side)}. Щёлкните следующую точку.");
+
     }
 
     private void HandleIntersectionClick(PointF point)
@@ -225,7 +220,7 @@ public partial class Form1 : Form
         {
             SetStatus(intersectionReference is null
                 ? "Укажите вторую точку первого ребра."
-                : "Укажите вторую точку проверяемого ребра.");
+            : "Укажите вторую точку проверяемого ребра.");
             return;
         }
 
@@ -241,19 +236,14 @@ public partial class Form1 : Form
         }
 
         canvas.SecondEdge = edge;
-        try
-        {
-            canvas.ResultPoint = segmentGeometry.FindIntersection(
-                new Segment(intersectionReference.Value.A, intersectionReference.Value.B),
-                new Segment(edge.Item1, edge.Item2));
-            SetStatus(canvas.ResultPoint is { } hit
-                ? $"Пересечение: ({hit.X:0.##}, {hit.Y:0.##}). Укажите следующую пару точек."
-                : "Рёбра не пересекаются. Укажите следующую пару точек.");
-        }
-        catch (NotImplementedException)
-        {
-            SetStatus("TODO: поиск пересечения отрезков");
-        }
+
+        canvas.ResultPoint = segmentGeometry.FindIntersection(
+            new Segment(intersectionReference.Value.A, intersectionReference.Value.B),
+            new Segment(edge.Item1, edge.Item2));
+        SetStatus(canvas.ResultPoint is { } hit
+            ? $"Пересечение: ({hit.X:0.##}, {hit.Y:0.##}). Укажите следующую пару точек."
+            : "Рёбра не пересекаются. Укажите следующую пару точек.");
+
     }
 
     private void FinishPolygon()
@@ -276,9 +266,7 @@ public partial class Form1 : Form
     private void AddPolygonVertex(PointF point)
     {
         if (canvas.CurrentPolygon is null)
-        {
             canvas.CurrentPolygon = new PolygonShape { Name = $"Полигон {canvas.Polygons.Count + 1}" };
-        }
 
         canvas.CurrentPolygon.Vertices.Add(point);
         SetStatus($"Вершин: {canvas.CurrentPolygon.Vertices.Count}. Нажмите «Завершить полигон», чтобы сохранить.");
@@ -286,32 +274,51 @@ public partial class Form1 : Form
 
     private void ClearScene()
     {
-        canvas.ClearScene(); polygonPicker.Items.Clear(); edgeClicks.Clear(); intersectionReference = null;
-        SetTool(Tool.Draw); SetStatus("Сцена очищена.");
+        canvas.ClearScene();
+        polygonPicker.Items.Clear();
+        edgeClicks.Clear();
+        intersectionReference = null;
+        SetTool(Tool.Draw);
+        SetStatus("Сцена очищена.");
     }
 
     private void StartContainment()
     {
-        canvas.QueryPoints.Clear(); canvas.ResultPoint = null; SetTool(Tool.Inside);
+        canvas.QueryPoints.Clear();
+        canvas.ResultPoint = null;
+        SetTool(Tool.Inside);
         SetStatus(SelectedPolygon() is null ? "Выберите полигон в списке, затем щёлкайте точки." : "Щёлкайте точки на холсте. Режим проверки остаётся активным.");
     }
 
     private void StartIntersection()
     {
-        edgeClicks.Clear(); canvas.QueryPoints.Clear(); canvas.SecondEdge = null; canvas.ResultPoint = null; SetTool(Tool.Intersect);
+        edgeClicks.Clear();
+        canvas.QueryPoints.Clear();
+        canvas.SecondEdge = null;
+        canvas.ResultPoint = null;
+        SetTool(Tool.Intersect);
         SetStatus(intersectionReference is null ? "Укажите две точки первого ребра." : "Укажите две точки нового ребра.");
     }
 
     private void ResetIntersection()
     {
-        intersectionReference = null; edgeClicks.Clear(); canvas.QueryPoints.Clear(); canvas.ReferenceEdge = null;
-        canvas.SecondEdge = null; canvas.ResultPoint = null; SetTool(Tool.Intersect);
+        intersectionReference = null;
+        edgeClicks.Clear();
+        canvas.QueryPoints.Clear();
+        canvas.ReferenceEdge = null;
+        canvas.SecondEdge = null;
+        canvas.ResultPoint = null;
+        SetTool(Tool.Intersect);
         SetStatus("Укажите две точки нового первого ребра.");
     }
 
     private void StartSideCheck()
     {
-        edgeClicks.Clear(); canvas.QueryPoints.Clear(); canvas.ReferenceEdge = null; canvas.ResultPoint = null; SetTool(Tool.Side);
+        edgeClicks.Clear();
+        canvas.QueryPoints.Clear();
+        canvas.ReferenceEdge = null;
+        canvas.ResultPoint = null;
+        SetTool(Tool.Side);
         SetStatus("Укажите две точки ребра, затем щёлкайте точки для классификации.");
     }
 
@@ -320,9 +327,7 @@ public partial class Form1 : Form
         try
         {
             if (GetPivot() is { } pivot)
-            {
                 TryTransform(() => affine.CreateRotation(ReadNumber(angle), pivot));
-            }
         }
         catch (FormatException)
         {
@@ -347,25 +352,29 @@ public partial class Form1 : Form
 
     private void TryTransform(Func<Matrix> createMatrix)
     {
-        if (SelectedPolygon() is not { } polygon) { SetStatus("Выберите полигон в списке."); return; }
+        if (SelectedPolygon() is not { } polygon)
+        {
+            SetStatus("Выберите полигон в списке.");
+            return;
+        }
+
         try
         {
-            using var matrix = createMatrix(); affine.Apply(polygon, matrix);
-            canvas.Invalidate(); SetStatus("Преобразование применено.");
+            using var matrix = createMatrix();
+            affine.Apply(polygon, matrix);
+            canvas.Invalidate();
+            SetStatus("Преобразование применено.");
         }
         catch (FormatException)
         {
             SetStatus("Введите корректные числа.");
         }
-        catch (NotImplementedException) { SetStatus("TODO: матричное преобразование"); }
     }
 
     private PointF? GetPivot()
     {
         if (!centerPivot.Checked)
-        {
             return new PointF(ReadNumber(pivotX), ReadNumber(pivotY));
-        }
 
         if (SelectedPolygon() is not { } polygon)
         {
@@ -373,19 +382,23 @@ public partial class Form1 : Form
             return null;
         }
 
-        try
-        {
-            return affine.GetCenter(polygon);
-        }
-        catch (NotImplementedException)
-        {
-            SetStatus("TODO: вычисление центра полигона");
-            return null;
-        }
+        return affine.GetCenter(polygon);
     }
 
-    private PolygonShape? SelectedPolygon() => canvas.SelectedIndex >= 0 && canvas.SelectedIndex < canvas.Polygons.Count ? canvas.Polygons[canvas.SelectedIndex] : null;
-    private void SetTool(Tool next) { tool = next; canvas.Cursor = next == Tool.Draw ? Cursors.Cross : Cursors.Hand; }
+    private PolygonShape? SelectedPolygon()
+    {
+        if (canvas.SelectedIndex < 0 || canvas.SelectedIndex >= canvas.Polygons.Count)
+            return null;
+
+        return canvas.Polygons[canvas.SelectedIndex];
+    }
+
+    private void SetTool(Tool next)
+    {
+        tool = next;
+        canvas.Cursor = next == Tool.Draw ? Cursors.Cross : Cursors.Hand;
+    }
+
     private void SetStatus(string message) => status.Text = $"Режим: {ToolName(tool)}\n{message}";
     private static string ToolName(Tool value) => value switch
     {
@@ -434,8 +447,14 @@ public partial class Form1 : Form
     {
         var box = new GroupBox { Text = title, Width = 360, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(8), Margin = new Padding(2, 5, 2, 5) };
         var stack = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true };
-        foreach (var child in children) { child.Margin = new Padding(2, 3, 2, 3); stack.Controls.Add(child); }
-        box.Controls.Add(stack); return box;
+        foreach (var child in children)
+        {
+            child.Margin = new Padding(2, 3, 2, 3);
+            stack.Controls.Add(child);
+        }
+
+        box.Controls.Add(stack);
+        return box;
     }
 
     private static Control Row(string title, params TextBox[] inputs)
@@ -443,15 +462,22 @@ public partial class Form1 : Form
         var panel = new FlowLayoutPanel { Width = 344, Height = 48, FlowDirection = FlowDirection.TopDown, WrapContents = false };
         panel.Controls.Add(new Label { Text = title, AutoSize = true });
         var row = new FlowLayoutPanel { Width = 340, Height = 28, WrapContents = false };
-        foreach (var input in inputs) { input.Width = inputs.Length == 1 ? 320 : 150; row.Controls.Add(input); }
-        panel.Controls.Add(row); return panel;
+        foreach (var input in inputs)
+        {
+            input.Width = inputs.Length == 1 ? 320 : 150;
+            row.Controls.Add(input);
+        }
+
+        panel.Controls.Add(row);
+        return panel;
     }
 
     private static Label Header(string text, float size) => new() { Text = text, AutoSize = true, Font = new Font("Segoe UI", size, FontStyle.Bold), Margin = new Padding(3, 2, 3, 6) };
     private static Button Button(string text, Action action)
     {
         var button = new Button { Text = text, Width = 326, Height = 34, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(8, 0, 0, 0) };
-        button.Click += (_, _) => action(); return button;
+        button.Click += (_, _) => action();
+        return button;
     }
     private static TextBox Number(float value) => new()
     {

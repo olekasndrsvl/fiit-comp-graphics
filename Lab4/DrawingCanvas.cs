@@ -53,64 +53,44 @@ public sealed class DrawingCanvas : Panel
         base.OnPaint(e);
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         for (var i = 0; i < Polygons.Count; i++)
-        {
             DrawPolygon(e.Graphics, Polygons[i], i == SelectedIndex, false);
-        }
 
         if (CurrentPolygon is not null)
-        {
             DrawPolygon(e.Graphics, CurrentPolygon, true, true);
-        }
 
         DrawEdge(e.Graphics, ReferenceEdge, Color.DarkOrange);
         DrawEdge(e.Graphics, SecondEdge, Color.MediumPurple);
         foreach (var point in QueryPoints)
-        {
             DrawMarker(e.Graphics, point, Color.Crimson);
-        }
 
         if (PivotMarker is { } pivot)
-        {
             DrawMarker(e.Graphics, pivot, Color.DarkGreen);
-        }
 
         if (ResultPoint is { } result)
-        {
             DrawMarker(e.Graphics, result, Color.Blue);
-        }
     }
 
     private static void DrawPolygon(Graphics g, PolygonShape polygon, bool selected, bool open)
     {
         var points = polygon.Vertices.ToArray();
         if (points.Length == 0)
-        {
             return;
-        }
 
         using var pen = new Pen(selected ? Color.RoyalBlue : Color.FromArgb(55, 75, 90), selected ? 2.5f : 1.7f);
         if (points.Length > 1)
-        {
             g.DrawLines(pen, points);
-        }
 
         if (!open && points.Length > 2)
-        {
             g.DrawLine(pen, points[^1], points[0]);
-        }
 
         foreach (var point in points)
-        {
             DrawMarker(g, point, selected ? Color.RoyalBlue : Color.Black);
-        }
     }
 
     private static void DrawEdge(Graphics g, (PointF A, PointF B)? edge, Color color)
     {
         if (edge is not { } value)
-        {
             return;
-        }
 
         using var pen = new Pen(color, 2);
         g.DrawLine(pen, value.A, value.B);
