@@ -19,15 +19,12 @@ public sealed class PolygonContainmentService
                 return IsOnSegment(vertices[0], vertices[1], point);
         }
 
-        // Точка на любом ребре (включая вырожденные нулевые рёбра) — внутри полигона.
         for (var i = 0; i < vertices.Count; i++)
         {
             if (IsOnSegment(vertices[i], vertices[(i + 1) % vertices.Count], point))
                 return true;
         }
 
-        // Метод трассировки луча (crossing number): луч вправо от точки.
-        // Полуправило (a.Y > y) != (b.Y > y) корректно считает проходы ровно через вершины.
         var inside = false;
         for (int i = 0, j = vertices.Count - 1; i < vertices.Count; j = i++)
         {
@@ -45,9 +42,6 @@ public sealed class PolygonContainmentService
         return inside;
     }
 
-    /// <summary>
-    /// Проверяет, лежит ли точка на отрезке (с допуском <see cref="Epsilon"/>).
-    /// </summary>
     private static bool IsOnSegment(PointF a, PointF b, PointF point)
     {
         var abX = b.X - a.X;
@@ -62,6 +56,7 @@ public sealed class PolygonContainmentService
 
         var dx = point.X - (a.X + t * abX);
         var dy = point.Y - (a.Y + t * abY);
+
         return dx * dx + dy * dy <= Epsilon * Epsilon;
     }
 
