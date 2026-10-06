@@ -11,6 +11,7 @@ partial class Form1
     private ComboBox polygonPicker = null!;
     private Label status = null!;
     private RadioButton customPivot = null!, centerPivot = null!;
+    private RadioButton rayCastAlgorithm = null!, angleAlgorithm = null!;
     private TextBox dx = null!, dy = null!, angle = null!, sx = null!, sy = null!, pivotX = null!, pivotY = null!;
 
 
@@ -77,6 +78,16 @@ partial class Form1
         pivotChoice.Controls.Add(customPivot);
         pivotChoice.Controls.Add(centerPivot);
 
+        rayCastAlgorithm = new RadioButton { Text = "Метод луча", AutoSize = true, Checked = true };
+        angleAlgorithm = new RadioButton { Text = "Метод суммы углов", AutoSize = true };
+        var algorithmChoice = new FlowLayoutPanel
+        {
+            Width = 200, AutoSize = true, FlowDirection = FlowDirection.TopDown,
+            WrapContents = false, Margin = new Padding(0)
+        };
+        algorithmChoice.Controls.Add(rayCastAlgorithm);
+        algorithmChoice.Controls.Add(angleAlgorithm);
+
         var tabs = new TabControl { Dock = DockStyle.Fill };
         var pages = new[]
         {
@@ -92,6 +103,8 @@ partial class Form1
                 Row("Масштаб sx / sy", sx, sy),
                 Button("Масштабировать", ScaleSelected)),
             CreateTaskTab("2. Принадлежность точки",
+                new Label { Text = "Алгоритм", AutoSize = true },
+                algorithmChoice,
                 Button("Проверить точку", StartContainment)),
             CreateTaskTab("3. Рёбра",
                 Button("Найти пересечение", StartIntersection),

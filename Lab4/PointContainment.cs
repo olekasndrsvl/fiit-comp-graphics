@@ -1,11 +1,103 @@
 namespace Lab4;
+public enum ContainmentAlgorithm
+{
+    RayCasting,
+    AngleSum
+}
 
 public sealed class PolygonContainmentService
 {
-    // TODO 2: implement point-in-polygon classification, including boundary and degenerate polygons.
-    // The UI calls this repeatedly while retaining the scene and the active query mode.
-    public bool ContainsPoint(PolygonShape polygon, PointF point)
+    private const float Epsilon = 1e-3f;
+
+    public bool ContainsPoint(PolygonShape polygon, PointF point) =>
+        ContainsPoint(polygon, point, ContainmentAlgorithm.RayCasting);
+
+    public bool ContainsPoint(PolygonShape polygon, PointF point, ContainmentAlgorithm algorithm)
     {
-        throw new NotImplementedException("TODO 2: point-in-polygon test");
+        var vertices = polygon.Vertices;
+
+        switch (vertices.Count)
+        {
+            case 0:
+                return false;
+            case 1:
+                return Distance(point, vertices[0]) <= Epsilon;
+            case 2:
+                return IsOnSegment(vertices[0], vertices[1], point);
+        }
+
+        for (var i = 0; i < vertices.Count; i++)
+        {
+            if (IsOnSegment(vertices[i], vertices[(i + 1) % vertices.Count], point))
+                return true;
+        }
+
+        if (algorithm == ContainmentAlgorithm.AngleSum)
+            return IsInsideByAngles(vertices, point);
+
+        return IsInsideByRayCasting(vertices, point);
+    }
+
+    private static bool IsInsideByRayCasting(List<PointF> vertices, PointF point)
+    {
+        var inside = false;
+        for (int i = 0, j = vertices.Count - 1; i < vertices.Count; j = i++)
+        {
+            var a = vertices[i];
+            var b = vertices[j];
+
+            if ((a.Y > point.Y) == (b.Y > point.Y))
+                continue;
+
+            var t = (point.Y - a.Y) / (b.Y - a.Y);
+            if (point.X < a.X + t * (b.X - a.X))
+                inside = !inside;
+        }
+
+        return inside;
+    }
+
+    private static bool IsInsideByAngles(List<PointF> vertices, PointF point)
+    {
+        double sum = 0;
+        for (var i = 0; i < vertices.Count; i++)
+        {
+            var a = vertices[i];
+            var b = vertices[(i + 1) % vertices.Count];
+
+            var ax = a.X - point.X;
+            var ay = a.Y - point.Y;
+            var bx = b.X - point.X;
+            var by = b.Y - point.Y;
+
+            sum += Math.Atan2(ax * by - ay * bx, ax * bx + ay * by);
+        }
+
+        return Math.Abs(sum) > Math.PI;
+    }
+
+    private static bool IsOnSegment(PointF a, PointF b, PointF point)
+    {
+        var abX = b.X - a.X;
+        var abY = b.Y - a.Y;
+        var lengthSquared = abX * abX + abY * abY;
+
+        if (lengthSquared <= Epsilon * Epsilon)
+            return Distance(point, a) <= Epsilon;
+
+        var t = ((point.X - a.X) * abX + (point.Y - a.Y) * abY) / lengthSquared;
+        t = Math.Clamp(t, 0f, 1f);
+
+        var dx = point.X - (a.X + t * abX);
+        var dy = point.Y - (a.Y + t * abY);
+
+        return dx * dx + dy * dy <= Epsilon * Epsilon;
+    }
+
+    private static float Distance(PointF a, PointF b)
+    {
+        var dx = a.X - b.X;
+        var dy = a.Y - b.Y;
+        return MathF.Sqrt(dx * dx + dy * dy);
     }
 }
