@@ -36,6 +36,7 @@ public partial class Form1 : Form
                 break;
 
             case Tool.Pivot:
+                customPivot.Checked = true;
                 pivotX.Text = e.X.ToString();
                 pivotY.Text = e.Y.ToString();
                 canvas.PivotMarker = point;
@@ -251,6 +252,10 @@ public partial class Form1 : Form
             canvas.Invalidate();
             SetStatus("Преобразование применено.");
         }
+        catch (ArgumentException exception)
+        {
+            SetStatus(exception.Message);
+        }
         catch (FormatException)
         {
             SetStatus("Введите корректные числа.");
@@ -294,7 +299,8 @@ public partial class Form1 : Form
     private static string SideText(PointSide side) => side switch { PointSide.Left => "слева", PointSide.Right => "справа", _ => "на ребре" };
     private static float ReadNumber(TextBox input)
     {
-        if (!float.TryParse(input.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out var value))
+        if (!float.TryParse(input.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out var value)
+            || !float.IsFinite(value))
         {
             throw new FormatException();
         }
