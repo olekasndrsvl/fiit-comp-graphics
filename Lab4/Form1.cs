@@ -52,9 +52,10 @@ public partial class Form1 : Form
                 if (SelectedPolygon() is { } polygon)
                 {
 
-                    var contains = containment.ContainsPoint(polygon, point);
+                    var algorithm = SelectedContainmentAlgorithm();
+                    var contains = containment.ContainsPoint(polygon, point, algorithm);
                     var relation = contains ? "внутри" : "снаружи";
-                    SetStatus($"Точка ({e.X}, {e.Y}): {relation} полигона «{polygon.Name}». Щёлкните следующую точку.");
+                    SetStatus($"Точка ({e.X}, {e.Y}): {relation} полигона «{polygon.Name}» ({AlgorithmName(algorithm)}). Щёлкните следующую точку.");
 
                 }
                 else
@@ -278,6 +279,15 @@ public partial class Form1 : Form
 
         return canvas.Polygons[canvas.SelectedIndex];
     }
+
+    private ContainmentAlgorithm SelectedContainmentAlgorithm() =>
+        angleAlgorithm.Checked ? ContainmentAlgorithm.AngleSum : ContainmentAlgorithm.RayCasting;
+
+    private static string AlgorithmName(ContainmentAlgorithm algorithm) => algorithm switch
+    {
+        ContainmentAlgorithm.AngleSum => "метод суммы углов",
+        _ => "метод луча"
+    };
 
     private void SetTool(Tool next)
     {

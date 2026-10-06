@@ -1,11 +1,25 @@
 namespace Lab4;
 
+// Алгоритм проверки принадлежности точки полигону.
+public enum ContainmentAlgorithm
+{
+    // Метод трассировки луча (crossing number).
+    RayCasting,
+
+    // Метод суммы ориентированных углов.
+    AngleSum
+}
+
 public sealed class PolygonContainmentService
 {
     private const float Epsilon = 1e-3f;
 
     // Граничные точки (вершина, ребро) считаются принадлежащими полигону.
-    public bool ContainsPoint(PolygonShape polygon, PointF point)
+    public bool ContainsPoint(PolygonShape polygon, PointF point) =>
+        ContainsPoint(polygon, point, ContainmentAlgorithm.RayCasting);
+
+    // Граничные точки (вершина, ребро) считаются принадлежащими полигону.
+    public bool ContainsPoint(PolygonShape polygon, PointF point, ContainmentAlgorithm algorithm)
     {
         var vertices = polygon.Vertices;
 
@@ -19,12 +33,23 @@ public sealed class PolygonContainmentService
                 return IsOnSegment(vertices[0], vertices[1], point);
         }
 
+        // Граница полигона проверяется до алгоритмов — общая часть для обоих.
         for (var i = 0; i < vertices.Count; i++)
         {
             if (IsOnSegment(vertices[i], vertices[(i + 1) % vertices.Count], point))
                 return true;
         }
 
+        return algorithm switch
+        {
+            ContainmentAlgorithm.AngleSum => IsInsideByAngles(vertices, point),
+            _ => IsInsideByRayCasting(vertices, point)
+        };
+    }
+
+    // Луч вправо от точки; полуправило (a.Y > y) != (b.Y > y) считает проходы через вершины один раз.
+    private static bool IsInsideByRayCasting(List<PointF> vertices, PointF point)
+    {
         var inside = false;
         for (int i = 0, j = vertices.Count - 1; i < vertices.Count; j = i++)
         {
@@ -40,6 +65,29 @@ public sealed class PolygonContainmentService
         }
 
         return inside;
+    }
+
+    // Сумма ориентированных углов, под которыми полигон виден из точки:
+    // ±2π внутри, 0 снаружи (вне зависимости от выпуклости).
+    private static bool IsInsideByAngles(List<PointF> vertices, PointF point)
+    {
+        double sum = 0;
+        for (var i = 0; i < vertices.Count; i++)
+        {
+            var a = vertices[i];
+            var b = vertices[(i + 1) % vertices.Count];
+
+            // Векторы от проверяемой точки к концам ребра.
+            var ax = a.X - point.X;
+            var ay = a.Y - point.Y;
+            var bx = b.X - point.X;
+            var by = b.Y - point.Y;
+
+            // Ориентированный угол через atan2(векторное произведение, скалярное).
+            sum += Math.Atan2(ax * by - ay * bx, ax * bx + ay * by);
+        }
+
+        return Math.Abs(sum) > Math.PI;
     }
 
     private static bool IsOnSegment(PointF a, PointF b, PointF point)
