@@ -1,3 +1,5 @@
+using System.Drawing.Drawing2D;
+
 namespace Lab5;
 
 internal sealed record LSystemSettings(
@@ -126,53 +128,50 @@ internal sealed class LSystemEngine
         if (Segments.Count == 0 || bounds.Width <= 0 || bounds.Height <= 0)
             return;
 
-        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
         const float padding = 20f;
-        var minX = Segments.Min(segment => Math.Min(segment.Start.X, segment.End.X));
-        var maxX = Segments.Max(segment => Math.Max(segment.Start.X, segment.End.X));
-        var minY = Segments.Min(segment => Math.Min(segment.Start.Y, segment.End.Y));
-        var maxY = Segments.Max(segment => Math.Max(segment.Start.Y, segment.End.Y));
+        var minX = Segments.Min(s => Math.Min(s.Start.X, s.End.X));
+        var maxX = Segments.Max(s => Math.Max(s.Start.X, s.End.X));
+        var minY = Segments.Min(s => Math.Min(s.Start.Y, s.End.Y));
+        var maxY = Segments.Max(s => Math.Max(s.Start.Y, s.End.Y));
 
-        float scale;
-        float offsetX;
-        float offsetY;
+        using var matrix = new Matrix();
 
         if (AutoScale)
         {
-            var drawingWidth = maxX - minX;
-            var drawingHeight = maxY - minY;
-            var availableWidth = Math.Max(1f, bounds.Width - padding * 2);
-            var availableHeight = Math.Max(1f, bounds.Height - padding * 2);
-            var scaleX = drawingWidth > 0 ? availableWidth / drawingWidth : float.MaxValue;
-            var scaleY = drawingHeight > 0 ? availableHeight / drawingHeight : float.MaxValue;
-            scale = Math.Min(scaleX, scaleY);
+            var width = maxX - minX;
+            var height = maxY - minY;
+            var availableWidth = Math.Max(1f, bounds.Width - 2 * padding);
+            var availableHeight = Math.Max(1f, bounds.Height - 2 * padding);
+            var scaleX = width > 0 ? availableWidth / width : float.MaxValue;
+            var scaleY = height > 0 ? availableHeight / height : float.MaxValue;
+            var scale = Math.Min(scaleX, scaleY);
+
             if (!float.IsFinite(scale))
                 scale = 1f;
 
-            offsetX = padding + (availableWidth - drawingWidth * scale) / 2f - minX * scale;
-            offsetY = padding + (availableHeight - drawingHeight * scale) / 2f - minY * scale;
+            matrix.Translate(-(minX + maxX) / 2f, -(minY + maxY) / 2f, MatrixOrder.Append);
+            matrix.Scale(scale, scale, MatrixOrder.Append);
+            matrix.Translate(bounds.Left + bounds.Width / 2f, bounds.Top + bounds.Height / 2f, MatrixOrder.Append);
         }
         else
         {
-            scale = 1f;
-            offsetX = bounds.Width / 2f;
-            offsetY = bounds.Height - padding;
+            matrix.Translate(bounds.Left + bounds.Width / 2f, bounds.Bottom - padding);
         }
 
         foreach (var segment in Segments)
         {
+            PointF[] points = [segment.Start, segment.End];
+            matrix.TransformPoints(points);
+
             using var pen = new Pen(segment.Color, segment.Thickness)
             {
-                StartCap = System.Drawing.Drawing2D.LineCap.Round,
-                EndCap = System.Drawing.Drawing2D.LineCap.Round
+                StartCap = LineCap.Round,
+                EndCap = LineCap.Round
             };
-            graphics.DrawLine(
-                pen,
-                offsetX + segment.Start.X * scale,
-                offsetY + segment.Start.Y * scale,
-                offsetX + segment.End.X * scale,
-                offsetY + segment.End.Y * scale);
+
+            graphics.DrawLine(pen, points[0], points[1]);
         }
     }
 
