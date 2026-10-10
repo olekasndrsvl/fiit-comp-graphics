@@ -49,7 +49,7 @@ partial class Form1
         ClientSize = new Size(1120, 720);
         MinimumSize = new Size(900, 600);
         StartPosition = FormStartPosition.CenterScreen;
-        Text = "Лабораторная работа №5 — L-системы. Алгоритм midpoint displacement. Кривые Безье";
+        Text = "Lab5";
         BackColor = SystemColors.Control;
         Font = new Font("Segoe UI", 9F);
         Controls.Add(CreateTabs());
@@ -260,7 +260,7 @@ partial class Form1
     private static Panel CreateCanvas() => new()
     {
         BackColor = Color.White, BorderStyle = BorderStyle.FixedSingle,
-        Dock = DockStyle.Fill, Margin = new Padding(3), Cursor = Cursors.Cross
+        Dock = DockStyle.Fill, Margin = new Padding(3)
     };
 
     private static Label CreateSectionTitle(string text) => new()
