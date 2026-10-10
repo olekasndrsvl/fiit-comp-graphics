@@ -122,6 +122,7 @@ partial class Form1
         sidebar.Controls.Add(clear);
 
         _lCanvas = CreateCanvas();
+        _lCanvas.Paint += LSystemCanvas_Paint;
         layout.Controls.Add(sidebar, 0, 0);
         layout.Controls.Add(_lCanvas, 1, 0);
         page.Controls.Add(layout);
