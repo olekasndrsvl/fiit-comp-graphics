@@ -15,6 +15,7 @@ partial class Form1
     private CheckBox _randomBranches = null!;
     private CheckBox _autoScale = null!;
     private TextBox _lAxiom = null!;
+    private TextBox _lDrawingSymbols = null!;
     private TextBox _lRules = null!;
     private NumericUpDown _lIterations = null!;
     private NumericUpDown _lAngle = null!;
@@ -80,16 +81,21 @@ partial class Form1
         _fileLabel = CreateNote("Файл не выбран");
         _fileLabel.AutoEllipsis = true;
         sidebar.Controls.Add(_fileLabel);
-        sidebar.Controls.Add(CreateFieldLabel("Аксиома"));
         _lAxiom = CreateTextField("F");
-        sidebar.Controls.Add(_lAxiom);
+        _lDrawingSymbols = CreateTextField("F");
+        var alphabet = CreateTwoColumnGrid();
+        alphabet.Controls.Add(CreateLabeledControl("Аксиома", _lAxiom), 0, 0);
+        alphabet.Controls.Add(CreateLabeledControl("Рисующие символы", _lDrawingSymbols), 1, 0);
+        sidebar.Controls.Add(alphabet);
         sidebar.Controls.Add(CreateFieldLabel("Правила (символ=замена)"));
         _lRules = CreateTextField("F=F[+F]F[-F]F", true);
         _lRules.Height = 76;
         sidebar.Controls.Add(_lRules);
 
-        _lIterations = CreateNumber(0, 8, 4);
+        _lIterations = CreateNumber(0, 16, 4);
         _lAngle = CreateNumber(0, 180, 25);
+        _lAngle.DecimalPlaces = 1;
+        _lAngle.Increment = 0.5M;
         _lDirection = CreateNumber(-360, 360, -90);
         _lRandomness = CreateNumber(0, 45, 8);
         var parameters = CreateTwoColumnGrid();

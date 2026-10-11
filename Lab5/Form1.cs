@@ -21,6 +21,10 @@ public partial class Form1 : Form
         _fileLabel.Text = Path.GetFileName(dialog.FileName);
         _fileLabel.ForeColor = Color.ForestGreen;
         _lAxiom.Text = _lSystem.Axiom;
+        _lDrawingSymbols.Text = _lSystem.DrawingSymbols;
+        _lAngle.Value = Math.Clamp((decimal)_lSystem.Angle, _lAngle.Minimum, _lAngle.Maximum);
+        _lDirection.Value = Math.Clamp(
+            (decimal)_lSystem.InitialDirection, _lDirection.Minimum, _lDirection.Maximum);
         _lRules.Lines = _lSystem.Rules.Select(rule => $"{rule.Key}={rule.Value}").ToArray();
     }
 
@@ -29,10 +33,11 @@ public partial class Form1 : Form
         var settings = new LSystemSettings(
             _lAxiom.Text,
             _lRules.Lines,
+            _lDrawingSymbols.Text,
             (int)_lIterations.Value,
             (float)_lAngle.Value,
             (float)_lDirection.Value,
-            _randomBranches.Checked ? (float)_lRandomness.Value : 0,
+            _treeMode.Checked && _randomBranches.Checked ? (float)_lRandomness.Value : 0,
             _treeMode.Checked,
             _autoScale.Checked,
             (float)_treeBaseThickness.Value,

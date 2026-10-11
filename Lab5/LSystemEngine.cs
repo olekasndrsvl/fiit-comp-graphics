@@ -1,9 +1,10 @@
 using System.Drawing.Drawing2D;
+using System.Globalization;
 
 namespace Lab5;
 
 internal sealed record LSystemSettings(
-    string Axiom, IReadOnlyList<string> Rules,
+    string Axiom, IReadOnlyList<string> Rules, string DrawingSymbols,
     int Iterations, float Angle,
     float InitialDirection, float RandomAngle,
     bool TreeMode, bool AutoScale,
@@ -22,6 +23,9 @@ internal sealed class LSystemEngine
     private const float TurtleStep = 10f;
 
     public string Axiom { get; private set; } = "F";
+    public string DrawingSymbols { get; private set; } = "F";
+    public float Angle { get; private set; } = 25f;
+    public float InitialDirection { get; private set; } = -90f;
     public Dictionary<char, string> Rules { get; } = [];
     public string Grammar { get; private set; } = "F";
     public IReadOnlyList<LSystemSegment> Segments { get; private set; } = [];
@@ -36,13 +40,25 @@ internal sealed class LSystemEngine
         if (lines.Length == 0)
             return;
 
-        Axiom = lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+        var header = lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        Axiom = header[0];
+
+        if (header.Length > 1 && float.TryParse(
+                header[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var angle))
+            Angle = angle;
+
+        if (header.Length > 2 && float.TryParse(
+                header[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var direction))
+            InitialDirection = direction;
+
+        DrawingSymbols = header.Length > 3 ? header[3] : "F";
         ParseRules(lines.Skip(1));
     }
 
     public void Build(LSystemSettings settings)
     {
         Axiom = settings.Axiom;
+        DrawingSymbols = settings.DrawingSymbols;
         Grammar = BuildGrammar(settings);
         AutoScale = settings.AutoScale;
         Segments = BuildTurtle(settings);
@@ -102,7 +118,7 @@ internal sealed class LSystemEngine
                     break;
                 }
                 default:
-                    if (char.IsLetter(command))
+                    if (settings.DrawingSymbols.Contains(command))
                     {
                         var next = Move(position, direction);
                         var thickness = settings.TreeMode
