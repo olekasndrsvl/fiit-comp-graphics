@@ -1,3 +1,5 @@
+using System.Drawing.Drawing2D;
+
 namespace Lab5;
 
 public partial class Form1 : Form
@@ -120,6 +122,94 @@ public partial class Form1 : Form
 
     private void BezierCanvas_MouseUp(object? sender, MouseEventArgs e) => _bezier.EndEdit();
 
+    private void RefreshBezierCanvas(object? sender, EventArgs e) => _bezierCanvas.Invalidate();
+
+    private void BezierCanvas_Paint(object? sender, PaintEventArgs e)
+    {
+        var graphics = e.Graphics;
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        var closed = _closeBezier.Checked;
+        var segments = _bezier.BuildSegments(closed);
+
+        if (_showBezierLines.Checked)
+            DrawBezierConstruction(graphics, segments, closed);
+
+        var polyline = _bezier.BuildPolyline(closed, (int)_bezierQuality.Value);
+        if (polyline.Count >= 2)
+        {
+            using var curvePen = new Pen(Color.Crimson, 2f)
+            {
+                LineJoin = LineJoin.Round,
+                StartCap = LineCap.Round,
+                EndCap = LineCap.Round
+            };
+            graphics.DrawLines(curvePen, polyline.ToArray());
+        }
+
+        if (_showBezierPoints.Checked)
+        {
+            foreach (var point in _bezier.Points)
+                DrawHandle(graphics, point, Color.Black, 4.5f);
+        }
+    }
+
+    // Вспомогательные линии: контрольный многоугольник Безье и вычисленные касательные точки.
+    private static void DrawBezierConstruction(Graphics graphics, List<BezierSegment> segments, bool closed)
+    {
+        if (segments.Count == 0)
+            return;
+
+        var polygon = new List<PointF>();
+        foreach (var segment in segments)
+        {
+            polygon.Add(segment.P0);
+            polygon.Add(segment.P1);
+            polygon.Add(segment.P2);
+        }
+
+        // Последняя точка P3 замыкает многоугольник (совпадает с P0 у замкнутой кривой).
+        polygon.Add(segments[^1].P3);
+
+        using var controlPen = new Pen(Color.SteelBlue, 1f) { DashStyle = DashStyle.Dash };
+        using var tangentBrush = new SolidBrush(Color.SteelBlue);
+
+        if (polygon.Count >= 2)
+            graphics.DrawLines(controlPen, polygon.ToArray());
+
+        foreach (var segment in segments)
+        {
+            graphics.FillRectangle(tangentBrush, segment.P1.X - 2.5f, segment.P1.Y - 2.5f, 5f, 5f);
+            graphics.FillRectangle(tangentBrush, segment.P2.X - 2.5f, segment.P2.Y - 2.5f, 5f, 5f);
+        }
+    }
+
+    private static void DrawHandle(Graphics graphics, PointF point, Color color, float radius)
+    {
+        using var brush = new SolidBrush(color);
+        using var pen = new Pen(Color.White, 1.5f);
+        graphics.FillEllipse(brush, point.X - radius, point.Y - radius, radius * 2f, radius * 2f);
+        graphics.DrawEllipse(pen, point.X - radius, point.Y - radius, radius * 2f, radius * 2f);
+    }
+
     private void UpdateStepLabel() =>
         _stepLabel.Text = $"Шаг {_stepTrack.Value} из {_stepTrack.Maximum}";
+
+    private static Panel CreateBezierCanvas() => new BezierCanvasPanel
+    {
+        BackColor = Color.White,
+        BorderStyle = BorderStyle.FixedSingle,
+        Dock = DockStyle.Fill,
+        Margin = new Padding(3)
+    };
+
+    // Панель с двойной буферизацией — для плавного перетаскивания опорных точек.
+    private sealed class BezierCanvasPanel : Panel
+    {
+        public BezierCanvasPanel()
+        {
+            DoubleBuffered = true;
+            ResizeRedraw = true;
+        }
+    }
 }
