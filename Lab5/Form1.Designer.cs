@@ -221,10 +221,15 @@ partial class Form1
         quality.Margin = new Padding(0, 10, 0, 0);
         sidebar.Controls.Add(quality);
 
-        _bezierCanvas = CreateCanvas();
+        _bezierCanvas = CreateBezierCanvas();
         _bezierCanvas.MouseDown += BezierCanvas_MouseDown;
         _bezierCanvas.MouseMove += BezierCanvas_MouseMove;
         _bezierCanvas.MouseUp += BezierCanvas_MouseUp;
+        _bezierCanvas.Paint += BezierCanvas_Paint;
+        _showBezierPoints.CheckedChanged += RefreshBezierCanvas;
+        _showBezierLines.CheckedChanged += RefreshBezierCanvas;
+        _closeBezier.CheckedChanged += RefreshBezierCanvas;
+        _bezierQuality.ValueChanged += RefreshBezierCanvas;
         layout.Controls.Add(sidebar, 0, 0);
         layout.Controls.Add(_bezierCanvas, 1, 0);
         page.Controls.Add(layout);
