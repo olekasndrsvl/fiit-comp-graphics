@@ -219,6 +219,8 @@ public partial class Form1 : Form
             DoubleBuffered = true;
             ResizeRedraw = true;
         }
+    }
+
     private void MidCanvas_Paint(object? sender, PaintEventArgs e)
     {
         var steps = _midpoint.Steps;
