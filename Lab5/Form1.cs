@@ -50,6 +50,9 @@ public partial class Form1 : Form
         _lCanvas.Invalidate();
     }
 
+    private void LSystemCanvas_Paint(object? sender, PaintEventArgs e) =>
+        _lSystem.Draw(e.Graphics, _lCanvas.ClientRectangle);
+
     private void LSystemOptionChanged(object? sender, EventArgs e)
     {
         _randomBranches.Enabled = _treeMode.Checked;
