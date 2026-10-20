@@ -52,6 +52,9 @@ public partial class Form1 : Form
         _lCanvas.Invalidate();
     }
 
+    private void LSystemCanvas_Paint(object? sender, PaintEventArgs e) =>
+        _lSystem.Draw(e.Graphics, _lCanvas.ClientRectangle);
+
     private void LSystemOptionChanged(object? sender, EventArgs e)
     {
         _randomBranches.Enabled = _treeMode.Checked;
@@ -211,5 +214,50 @@ public partial class Form1 : Form
             DoubleBuffered = true;
             ResizeRedraw = true;
         }
+    private void MidCanvas_Paint(object? sender, PaintEventArgs e)
+    {
+        var steps = _midpoint.Steps;
+        if (steps.Count == 0) return;
+
+        int idx = Math.Clamp(_midpoint.SelectedStep, 0, steps.Count - 1);
+        var polyline = steps[idx];
+        if (polyline.Count < 2) return;
+
+        var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        g.Clear(Color.White);
+
+        float minY = polyline.Min(p => p.Y);
+        float maxY = polyline.Max(p => p.Y);
+        if (maxY - minY < 1e-3f) maxY = minY + 1f;
+
+        const float margin = 20f;
+        float w = _midCanvas.ClientSize.Width - margin * 2;
+        float h = _midCanvas.ClientSize.Height - margin * 2;
+        float scaleX = w / (polyline.Count - 1);
+        float scaleY = h / (maxY - minY);
+
+        var pts = new PointF[polyline.Count];
+        for (int i = 0; i < polyline.Count; i++)
+        {
+            pts[i] = new PointF(
+                margin + polyline[i].X * scaleX,
+                margin + (maxY - polyline[i].Y) * scaleY);
+        }
+
+        using (var fill = new SolidBrush(Color.FromArgb(60, 70, 130, 180)))
+        {
+            var poly = new List<PointF>(pts);
+            poly.Add(new PointF(pts[^1].X, margin + h));
+            poly.Add(new PointF(pts[0].X, margin + h));
+            g.FillPolygon(fill, poly.ToArray());
+        }
+
+        using var pen = new Pen(Color.SteelBlue, 2f);
+        g.DrawLines(pen, pts);
+
+        using var dot = new SolidBrush(Color.Firebrick);
+        foreach (var p in pts)
+            g.FillEllipse(dot, p.X - 2, p.Y - 2, 4, 4);
     }
 }
