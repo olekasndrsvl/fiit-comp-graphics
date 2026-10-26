@@ -2,6 +2,7 @@ using Lab6.Core.Geometry;
 using Lab6.Core.Mathematics;
 using Lab6.Core.Scene;
 using Lab6.Modeling;
+using MathNet.Numerics.LinearAlgebra;
 
 namespace Lab6;
 
@@ -34,7 +35,7 @@ public partial class Form1 : Form
     {
         var item = SelectedObject();
         var offset = ReadPoint(translation);
-        item.Apply(Matrix4.Translation(offset.X, offset.Y, offset.Z));
+        item.Apply(TransformMatrix.Translation(offset.X, offset.Y, offset.Z));
         UpdateScene("Смещение выполнено");
     }
 
@@ -42,10 +43,10 @@ public partial class Form1 : Form
     {
         var item = SelectedObject();
         var radians = (double)(arbitrary ? lineAngle.Value : angle.Value) * Math.PI / 180;
-        Matrix4 operation;
+        Matrix<double> operation;
         if (arbitrary)
         {
-            operation = Matrix4.RotationAroundLine(ReadPoint(lineStart), ReadPoint(lineEnd), radians);
+            operation = TransformMatrix.RotationAroundLine(ReadPoint(lineStart), ReadPoint(lineEnd), radians);
         }
         else
         {
@@ -55,9 +56,9 @@ public partial class Form1 : Form
                 1 => new Point3D(0, 1, 0),
                 _ => new Point3D(0, 0, 1)
             };
-            operation = Matrix4.Rotation(direction.X, direction.Y, direction.Z, radians);
+            operation = TransformMatrix.Rotation(direction.X, direction.Y, direction.Z, radians);
             if (rotationCenter.Checked)
-                operation = Matrix4.Around(item.Center, operation);
+                operation = TransformMatrix.Around(item.Center, operation);
         }
         item.Apply(operation);
         UpdateScene("Поворот выполнен");
@@ -67,9 +68,9 @@ public partial class Form1 : Form
     {
         var item = SelectedObject();
         var scale = ReadPoint(scaleInputs);
-        var operation = Matrix4.Scale(scale.X, scale.Y, scale.Z);
+        var operation = TransformMatrix.Scale(scale.X, scale.Y, scale.Z);
         if (scaleCenter.Checked)
-            operation = Matrix4.Around(item.Center, operation);
+            operation = TransformMatrix.Around(item.Center, operation);
         item.Apply(operation);
         UpdateScene("Масштабирование выполнено");
     }
@@ -77,7 +78,7 @@ public partial class Form1 : Form
     private void Reflect()
     {
         var item = SelectedObject();
-        item.Apply(Matrix4.Reflection(reflectionPlane.Text));
+        item.Apply(TransformMatrix.Reflection(reflectionPlane.Text));
         UpdateScene("Отражение выполнено");
     }
 
