@@ -3,7 +3,7 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace Lab6.Core.Mathematics;
 
-/// <summary>Матрицы преобразований 4×4. Векторы-столбцы, углы в радианах.</summary>
+/// <summary>Матрицы преобразований 4×4. Векторы-строки, углы в радианах.</summary>
 public static class TransformMatrix
 {
     public static Matrix<double> Identity => Matrix<double>.Build.DenseIdentity(4);
