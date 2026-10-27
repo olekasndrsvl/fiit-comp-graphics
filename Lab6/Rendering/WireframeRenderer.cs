@@ -61,4 +61,42 @@ public sealed class WireframeRenderer
         foreach (var (start, end) in segments)
             graphics.DrawLine(pen, start, end);
     }
+
+    public void DrawAxes(Graphics graphics, Size viewport, bool perspective)
+    {
+        var aspect = (double)viewport.Width / viewport.Height;
+        var projection = perspective ? Projections.Perspective(aspect) : Projections.Axonometric();
+
+        // Мировые оси: только View · Projection, без Model.
+        var view = Matrix<double>.Build.DenseIdentity(4);
+        if (perspective) view[3, 2] = 5;
+        var transform = view * projection;
+
+        var scale = perspective ? 0d : Math.Min(viewport.Width, viewport.Height) / 4d;
+
+        foreach (var (pa, pb, color) in AxesGeometry.Segments)
+        {
+            var a = Transform(pa, transform);
+            var b = Transform(pb, transform);
+            if (perspective && !ClipSegment(ref a, ref b))
+                continue;
+
+            using var pen = new Pen(color, 2f);
+            graphics.DrawLine(pen,
+                ToScreen(a, viewport, perspective, scale),
+                ToScreen(b, viewport, perspective, scale));
+        }
+    }
+
+    public void Render(Graphics graphics, Size viewport, SceneObject item, bool perspective, bool showAxes = false)
+    {
+        if (showAxes)
+            DrawAxes(graphics, viewport, perspective);
+
+        var aspect = (double)viewport.Width / viewport.Height;
+        var projection = perspective ? Projections.Perspective(aspect) : Projections.Axonometric();
+        var segments = Project(item, viewport, projection, perspective);
+        using var pen = new Pen(Color.Black);
+        DrawEdges(graphics, segments, pen);
+    }
 }
