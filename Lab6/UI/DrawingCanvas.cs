@@ -13,6 +13,8 @@ public sealed class DrawingCanvas : Panel
     public SceneObject? SceneObject { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool Perspective { get; set; }
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool ShowAxes { get; set; }
 
     public DrawingCanvas()
     {
@@ -34,7 +36,7 @@ public sealed class DrawingCanvas : Panel
         if (SceneObject is null || ClientSize.Width <= 0 || ClientSize.Height <= 0) return;
         try
         {
-            renderer.Render(e.Graphics, ClientSize, SceneObject, Perspective);
+            renderer.Render(e.Graphics, ClientSize, SceneObject, Perspective, ShowAxes);
         }
         catch (NotImplementedException ex)
         {

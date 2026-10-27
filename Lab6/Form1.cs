@@ -14,7 +14,8 @@ public partial class Form1 : Form
     public Form1()
     {
         InitializeComponent();
-        canvas.RenderPending += message => status.Text = message;
+        canvas.RenderPending += m => status.Text = m;
+        canvas.ShowAxes = true;      
         Shown += (_, _) => UpdateScene("Выберите модель");
     }
 
