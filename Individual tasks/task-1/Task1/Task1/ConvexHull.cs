@@ -1,8 +1,5 @@
 namespace Task1;
 
-/// <summary>
-/// Stores selected points and builds their convex hull using QuickHull.
-/// </summary>
 public sealed class ConvexHull
 {
     private readonly List<Point> _points = [];
@@ -73,7 +70,5 @@ public sealed class ConvexHull
         FindHull(farthest, second, secondSide, hull);
     }
 
-    private static int Cross(Point a, Point b, Point c) =>
-        (b.X - a.X) * (c.Y - a.Y) -
-        (b.Y - a.Y) * (c.X - a.X);
+    private static int Cross(Point a, Point b, Point c) => (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
 }
