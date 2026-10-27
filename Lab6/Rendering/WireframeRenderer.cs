@@ -6,15 +6,6 @@ namespace Lab6.Rendering;
 
 public sealed class WireframeRenderer
 {
-    public void Render(Graphics graphics, Size viewport, SceneObject item, bool perspective) // viewport - размеры экрана
-    {
-        var aspect = (double)viewport.Width / viewport.Height;
-        var projection = perspective ? Projections.Perspective(aspect) : Projections.Axonometric();
-        var segments = Project(item, viewport, projection, perspective);
-        using var pen = new Pen(Color.Black);
-        DrawEdges(graphics, segments, pen);
-    }
-
     public List<(PointF Start, PointF End)> Project(SceneObject item, Size viewport, Matrix<double> projection, bool perspective)
     {
         var view = Matrix<double>.Build.DenseIdentity(4); // для развития
@@ -32,19 +23,12 @@ public sealed class WireframeRenderer
         {
             var a = vertices[start];
             var b = vertices[end];
-            segments.Add((ToScreen(a), ToScreen(b)));
+            segments.Add((
+                ToScreen(a, viewport, perspective, scale),
+                ToScreen(b, viewport, perspective, scale)));
         }
 
         return segments;
-
-        PointF ToScreen(ClipPoint point)
-        {
-            var x = point.X / point.W;
-            var y = point.Y / point.W;
-            var scaleX = perspective ? viewport.Width / 2d : scale;
-            var scaleY = perspective ? viewport.Height / 2d : scale;
-            return new PointF((float)(viewport.Width / 2d + x * scaleX), (float)(viewport.Height / 2d - y * scaleY));
-        }
     }
 
     private static ClipPoint Transform(Point3D point, Matrix<double> matrix)
@@ -52,6 +36,17 @@ public sealed class WireframeRenderer
         var position = Vector<double>.Build.DenseOfArray([point.X, point.Y, point.Z, 1]);
         var result = position * matrix;
         return new ClipPoint(result[0], result[1], result[2], result[3]);
+    }
+
+    private static PointF ToScreen(ClipPoint point, Size viewport, bool perspective, double scale)
+    {
+        var x = point.X / point.W;
+        var y = point.Y / point.W;
+        var scaleX = perspective ? viewport.Width / 2d : scale;
+        var scaleY = perspective ? viewport.Height / 2d : scale;
+        return new PointF(
+            (float)(viewport.Width / 2d + x * scaleX),
+            (float)(viewport.Height / 2d - y * scaleY));
     }
 
     private readonly record struct ClipPoint(double X, double Y, double Z, double W);
@@ -67,7 +62,7 @@ public sealed class WireframeRenderer
         var aspect = (double)viewport.Width / viewport.Height;
         var projection = perspective ? Projections.Perspective(aspect) : Projections.Axonometric();
 
-        // Мировые оси: только View · Projection, без Model.
+        // Мировые оси: только View * Projection, без Model.
         var view = Matrix<double>.Build.DenseIdentity(4);
         if (perspective) view[3, 2] = 5;
         var transform = view * projection;
@@ -78,8 +73,6 @@ public sealed class WireframeRenderer
         {
             var a = Transform(pa, transform);
             var b = Transform(pb, transform);
-            if (perspective && !ClipSegment(ref a, ref b))
-                continue;
 
             using var pen = new Pen(color, 2f);
             graphics.DrawLine(pen,

@@ -4,7 +4,7 @@ namespace Lab6.Rendering;
 
 public static class AxesGeometry
 {
-    public const double Length = 5.0;
+    public const double Length = 2.0;
 
     public static readonly (Point3D A, Point3D B, Color Color)[] Segments =
     [
