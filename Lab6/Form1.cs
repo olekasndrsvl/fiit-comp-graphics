@@ -1,6 +1,7 @@
 using Lab6.Core.Geometry;
 using Lab6.Core.Mathematics;
 using Lab6.Core.Scene;
+using Lab6.IO;
 using Lab6.Modeling;
 using MathNet.Numerics.LinearAlgebra;
 
@@ -10,6 +11,7 @@ public partial class Form1 : Form
 {
     private SceneObject? sceneObject;
     private int selectedModel = 1;
+    private string? currentObjPath;
 
     public Form1()
     {
@@ -26,8 +28,74 @@ public partial class Form1 : Form
             MarkSelected(modelButtons[i], i == selectedModel);
         sceneObject = new SceneObject(PlatonicSolids.Create(index));
         canvas.SceneObject = sceneObject;
+        currentObjPath = null;
+        objFileInfo.Text = "Встроенная модель";
         UpdateScene("Модель создана");
     }
+
+    private void LoadObjModel()
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Загрузить модель Wavefront OBJ",
+            Filter = "Wavefront OBJ (*.obj)|*.obj|Все файлы (*.*)|*.*",
+            FilterIndex = 1,
+            CheckFileExists = true,
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        var geometry = ObjSerializer.Load(dialog.FileName);
+        sceneObject = new SceneObject(geometry);
+        canvas.SceneObject = sceneObject;
+        currentObjPath = dialog.FileName;
+        objFileInfo.Text = Path.GetFileName(dialog.FileName);
+        foreach (var button in modelButtons)
+            MarkSelected(button, false);
+        UpdateScene($"OBJ загружен: {Path.GetFileName(dialog.FileName)}");
+    }
+
+    private void SaveObjModel()
+    {
+        var item = SelectedObject();
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Сохранить модель Wavefront OBJ",
+            Filter = "Wavefront OBJ (*.obj)|*.obj|Все файлы (*.*)|*.*",
+            FilterIndex = 1,
+            AddExtension = true,
+            DefaultExt = "obj",
+            OverwritePrompt = true,
+            FileName = currentObjPath is null ? "model.obj" : Path.GetFileName(currentObjPath)
+        };
+        if (currentObjPath is not null)
+            dialog.InitialDirectory = Path.GetDirectoryName(currentObjPath);
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        ObjSerializer.Save(dialog.FileName, item.Geometry, item.Model);
+        currentObjPath = dialog.FileName;
+        objFileInfo.Text = Path.GetFileName(dialog.FileName);
+        UpdateScene($"OBJ сохранён: {Path.GetFileName(dialog.FileName)}");
+    }
+
+    private void AddRevolutionPoint() =>
+        throw new NotImplementedException("TODO 2: добавление точки образующей.");
+
+    private void RemoveRevolutionPoint() =>
+        throw new NotImplementedException("TODO 2: удаление выбранной точки образующей.");
+
+    private void ClearRevolutionPoints() =>
+        throw new NotImplementedException("TODO 2: очистка точек образующей.");
+
+    private void BuildRevolutionModel() =>
+        throw new NotImplementedException("TODO 2: построение фигуры вращения.");
+
+    private void BuildFunctionSurface() =>
+        throw new NotImplementedException("TODO 3: построение графика функции двух переменных.");
 
     private SceneObject SelectedObject() =>
         sceneObject ?? throw new InvalidOperationException("Сначала создайте модель.");
@@ -95,7 +163,9 @@ public partial class Form1 : Form
         {
             action();
         }
-        catch (Exception ex) when (ex is NotImplementedException or ArgumentException or InvalidOperationException)
+        catch (Exception ex) when (ex is
+            NotImplementedException or ArgumentException or InvalidOperationException or
+            FormatException or IOException or UnauthorizedAccessException)
         {
             // В каркасе нажатие кнопки показывает задачу, а не закрывает приложение.
             status.Text = ex.Message;
