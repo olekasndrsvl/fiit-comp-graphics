@@ -30,7 +30,6 @@ partial class Form1
     private CheckBox _midFixedSeed = null!;
     private CheckBox _showBezierPoints = null!;
     private CheckBox _showBezierLines = null!;
-    private CheckBox _closeBezier = null!;
     private NumericUpDown _bezierQuality = null!;
     private Panel _lCanvas = null!;
     private Panel _midCanvas = null!;
@@ -221,10 +220,8 @@ partial class Form1
         sidebar.Controls.Add(CreateSectionTitle("Отображение"));
         _showBezierPoints = CreateCheckBox("Показывать опорные точки", true);
         _showBezierLines = CreateCheckBox("Показывать вспомогательные линии", true);
-        _closeBezier = CreateCheckBox("Замкнуть кривую", false);
         sidebar.Controls.Add(_showBezierPoints);
         sidebar.Controls.Add(_showBezierLines);
-        sidebar.Controls.Add(_closeBezier);
         _bezierQuality = CreateNumber(10, 500, 100);
         var quality = CreateLabeledControl("Точность (сегментов)", _bezierQuality);
         quality.Margin = new Padding(0, 10, 0, 0);
@@ -237,7 +234,6 @@ partial class Form1
         _bezierCanvas.Paint += BezierCanvas_Paint;
         _showBezierPoints.CheckedChanged += RefreshBezierCanvas;
         _showBezierLines.CheckedChanged += RefreshBezierCanvas;
-        _closeBezier.CheckedChanged += RefreshBezierCanvas;
         _bezierQuality.ValueChanged += RefreshBezierCanvas;
         layout.Controls.Add(sidebar, 0, 0);
         layout.Controls.Add(_bezierCanvas, 1, 0);
