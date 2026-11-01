@@ -108,8 +108,12 @@ public partial class Form1 : Form
 
     private void BezierCanvas_MouseDown(object? sender, MouseEventArgs e)
     {
-        if (e.Button == MouseButtons.Left) _bezier.BeginEdit(e.Location);
-        if (e.Button == MouseButtons.Right) _bezier.RemoveNearest(e.Location);
+        if (e.Button == MouseButtons.Left)
+            _bezier.BeginEdit(e.Location);
+
+        if (e.Button == MouseButtons.Right)
+            _bezier.RemoveNearest(e.Location);
+
         _bezierCanvas.Invalidate();
     }
 
@@ -129,14 +133,23 @@ public partial class Form1 : Form
         var graphics = e.Graphics;
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-        var closed = _closeBezier.Checked;
-        var segments = _bezier.BuildSegments(closed);
+        
 
-        if (_showBezierLines.Checked)
-            DrawBezierConstruction(graphics, segments, closed);
+        if (_showBezierLines.Checked && _bezier.Points.Count >= 2)
+        {
+            using var controlPen = new Pen(Color.SteelBlue, 1f)
+            {
+                DashStyle = DashStyle.Dash
+            };
 
-        var polyline = _bezier.BuildPolyline(closed, (int)_bezierQuality.Value);
-        if (polyline.Count >= 2)
+            graphics.DrawLines(controlPen, _bezier.Points.ToArray());
+        }
+
+        int steps = Math.Max(1, (int)_bezierQuality.Value);
+
+        var curve = _bezier.BuildPolyline(steps);
+
+        if (curve.Count >= 2)
         {
             using var curvePen = new Pen(Color.Crimson, 2f)
             {
@@ -144,45 +157,61 @@ public partial class Form1 : Form
                 StartCap = LineCap.Round,
                 EndCap = LineCap.Round
             };
-            graphics.DrawLines(curvePen, polyline.ToArray());
+
+            graphics.DrawLines(curvePen, curve.ToArray());
         }
 
         if (_showBezierPoints.Checked)
         {
             foreach (var point in _bezier.Points)
+            {
                 DrawHandle(graphics, point, Color.Black, 4.5f);
+            }
         }
     }
 
-    // Вспомогательные линии: контрольный многоугольник Безье и вычисленные касательные точки.
-    private static void DrawBezierConstruction(Graphics graphics, List<BezierSegment> segments, bool closed)
-    {
-        if (segments.Count == 0)
-            return;
 
-        var polygon = new List<PointF>();
-        foreach (var segment in segments)
+    private static void DrawBezierConstruction(
+        Graphics graphics,
+        List<BezierSegment> segments)
         {
-            polygon.Add(segment.P0);
-            polygon.Add(segment.P1);
-            polygon.Add(segment.P2);
+            if (segments.Count == 0)
+                return;
+
+            using var controlPen = new Pen(Color.SteelBlue, 1f)
+            {
+                DashStyle = DashStyle.Dash
+            };
+
+            using var tangentBrush = new SolidBrush(Color.SteelBlue);
+
+            foreach (var segment in segments)
+            {
+                graphics.DrawLines(controlPen, new[]
+                {
+                segment.P0,
+                segment.P1,
+                segment.P2,
+                segment.P3
+            });
+
+
+                graphics.FillRectangle(
+                    tangentBrush,
+                    segment.P1.X - 2.5f,
+                    segment.P1.Y - 2.5f,
+                    5f,
+                    5f);
+
+                graphics.FillRectangle(
+                    tangentBrush,
+                    segment.P2.X - 2.5f,
+                    segment.P2.Y - 2.5f,
+                    5f,
+                    5f);
+            }
         }
 
-        // Последняя точка P3 замыкает многоугольник (совпадает с P0 у замкнутой кривой).
-        polygon.Add(segments[^1].P3);
-
-        using var controlPen = new Pen(Color.SteelBlue, 1f) { DashStyle = DashStyle.Dash };
-        using var tangentBrush = new SolidBrush(Color.SteelBlue);
-
-        if (polygon.Count >= 2)
-            graphics.DrawLines(controlPen, polygon.ToArray());
-
-        foreach (var segment in segments)
-        {
-            graphics.FillRectangle(tangentBrush, segment.P1.X - 2.5f, segment.P1.Y - 2.5f, 5f, 5f);
-            graphics.FillRectangle(tangentBrush, segment.P2.X - 2.5f, segment.P2.Y - 2.5f, 5f, 5f);
-        }
-    }
 
     private static void DrawHandle(Graphics graphics, PointF point, Color color, float radius)
     {
