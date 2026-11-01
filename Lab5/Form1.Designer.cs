@@ -7,6 +7,7 @@ partial class Form1
     private System.ComponentModel.IContainer? components;
 
     private Label _fileLabel = null!;
+
     private TrackBar _stepTrack = null!;
     private Label _stepLabel = null!;
     private NumericUpDown _midIterations = null!;
@@ -121,6 +122,7 @@ partial class Form1
         sidebar.Controls.Add(clear);
 
         _lCanvas = CreateCanvas();
+        _lCanvas.Paint += LSystemCanvas_Paint;
         layout.Controls.Add(sidebar, 0, 0);
         layout.Controls.Add(_lCanvas, 1, 0);
         page.Controls.Add(layout);
@@ -185,6 +187,7 @@ partial class Form1
         sidebar.Controls.Add(navigation);
 
         _midCanvas = CreateCanvas();
+        _midCanvas.Paint += MidCanvas_Paint;
         layout.Controls.Add(sidebar, 0, 0);
         layout.Controls.Add(_midCanvas, 1, 0);
         page.Controls.Add(layout);
