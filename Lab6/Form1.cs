@@ -11,13 +11,14 @@ public partial class Form1 : Form
 {
     private SceneObject? sceneObject;
     private int selectedModel = 1;
+    private readonly FigureRevolution figureRevolution = new();
     private string? currentObjPath;
 
     public Form1()
     {
         InitializeComponent();
         canvas.RenderPending += m => status.Text = m;
-        canvas.ShowAxes = true;      
+        canvas.ShowAxes = true;
         Shown += (_, _) => UpdateScene("Выберите модель");
     }
 
@@ -82,20 +83,83 @@ public partial class Form1 : Form
         UpdateScene($"OBJ сохранён: {Path.GetFileName(dialog.FileName)}");
     }
 
-    private void AddRevolutionPoint() =>
-        throw new NotImplementedException("TODO 2: добавление точки образующей.");
+    private void AddRevolutionPoint()
+    {
+        var point = ReadPoint(revolutionPoint);
 
-    private void RemoveRevolutionPoint() =>
-        throw new NotImplementedException("TODO 2: удаление выбранной точки образующей.");
+        figureRevolution.AddPoint(point);
+        RefreshRevolutionPointList(); // обновлем список точек на экране
 
-    private void ClearRevolutionPoints() =>
-        throw new NotImplementedException("TODO 2: очистка точек образующей.");
+        revolutionPoints.SelectedIndex = revolutionPoints.Items.Count - 1;
 
-    private void BuildRevolutionModel() =>
-        throw new NotImplementedException("TODO 2: построение фигуры вращения.");
+        status.Text = $"Точка образующей добавлена. Всего точек: {figureRevolution.Profile.Count}";
+    }
+
+    private void RemoveRevolutionPoint()
+    {
+        var index = revolutionPoints.SelectedIndex;
+
+        figureRevolution.RemovePoint(index);
+        RefreshRevolutionPointList();
+
+        status.Text = "Точка образующей удалена";
+    }
+
+    private void ClearRevolutionPoints()
+    {
+        figureRevolution.Clear();
+        revolutionPoints.Items.Clear();
+
+        status.Text = "Образующая очищена";
+    }
+
+    private void BuildRevolutionModel()
+    {
+        var divisions = decimal.ToInt32(revolutionDivisions.Value);
+
+        var axisIndex = revolutionAxis.SelectedIndex;
+        if (axisIndex < 0) axisIndex = 0;
+
+        var geometry = figureRevolution.Generate(axisIndex, divisions);
+
+        sceneObject = new SceneObject(geometry);
+        canvas.SceneObject = sceneObject;
+
+        foreach (var button in modelButtons)
+            MarkSelected(button, false);
+
+        UpdateScene($"Фигура вращения построена: {geometry.Positions.Count} вершин, {geometry.Faces.Count} граней");
+    }
+
+    private void RefreshRevolutionPointList()
+    {
+        var selectedIndex = revolutionPoints.SelectedIndex;
+
+        revolutionPoints.BeginUpdate();
+        revolutionPoints.Items.Clear();
+
+        for (var i = 0; i < figureRevolution.Profile.Count; i++)
+        {
+            var point = figureRevolution.Profile[i];
+
+            revolutionPoints.Items.Add(
+                $"{i + 1}. ({point.X:0.##}; {point.Y:0.##}; {point.Z:0.##})");
+        }
+
+        if (figureRevolution.Profile.Count > 0)
+        {
+            revolutionPoints.SelectedIndex = Math.Clamp(
+                selectedIndex,
+                0,
+                figureRevolution.Profile.Count - 1);
+        }
+
+        revolutionPoints.EndUpdate();
+    }
 
     private void BuildFunctionSurface() =>
         throw new NotImplementedException("TODO 3: построение графика функции двух переменных.");
+
 
     private SceneObject SelectedObject() =>
         sceneObject ?? throw new InvalidOperationException("Сначала создайте модель.");
