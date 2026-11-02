@@ -20,6 +20,7 @@ partial class Form1
     private CheckBox rotationCenter = null!, scaleCenter = null!;
     private Label status = null!, modelInfo = null!, centerInfo = null!, objFileInfo = null!;
     private ListBox revolutionPoints = null!;
+    private ComboBox revolutionTemplate = null!;
     private TabControl toolTabs = null!;
     private readonly List<Panel> operationPanels = [];
     private readonly List<RadioButton> operationButtons = [];
@@ -199,28 +200,50 @@ partial class Form1
     private FlowLayoutPanel CreateRevolutionPanel()
     {
         var panel = Stack();
+
         panel.Controls.Add(Title("Фигура вращения"));
+        panel.Controls.Add(Note("Выберите шаблон или задайте точки вручную.", 38));
+
+        revolutionTemplate = Picker(
+            "Сосуд",
+            "Ваза",
+            "Бокал",
+            "Ракета",
+            "Песочные часы"
+        );
+
+        panel.Controls.Add(Field("Шаблон образующей", revolutionTemplate));
+
+        panel.Controls.Add(ActionButton("Загрузить шаблон", LoadRevolutionTemplate));
+
         panel.Controls.Add(Note("Задайте точки образующей в порядке соединения.", 38));
 
         revolutionPoint = Triple(0, 0, 0, -10000, 10000);
         panel.Controls.Add(TripleField("Новая точка образующей", revolutionPoint));
+
         panel.Controls.Add(ActionRow(
             ("Добавить", AddRevolutionPoint),
             ("Удалить", RemoveRevolutionPoint)));
 
         revolutionPoints = new ListBox
         {
-            Width = 280, Height = 120, Margin = new Padding(0, 4, 0, 4),
-            BackColor = EditorTheme.Input, ForeColor = EditorTheme.Text
+            Width = 280,
+            Height = 120,
+            Margin = new Padding(0, 4, 0, 4),
+            BackColor = EditorTheme.Input,
+            ForeColor = EditorTheme.Text
         };
+
         panel.Controls.Add(revolutionPoints);
         panel.Controls.Add(ActionButton("Очистить образующую", ClearRevolutionPoints));
 
         revolutionAxis = Picker("X", "Y", "Z");
         revolutionDivisions = Number(3, 360, 24, 0, 1);
+
         panel.Controls.Add(Field("Ось вращения", revolutionAxis));
         panel.Controls.Add(Field("Количество разбиений", revolutionDivisions));
         panel.Controls.Add(ActionButton("Построить фигуру", BuildRevolutionModel));
+
         return panel;
     }
 

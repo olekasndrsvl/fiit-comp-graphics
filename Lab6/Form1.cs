@@ -157,6 +157,100 @@ public partial class Form1 : Form
         revolutionPoints.EndUpdate();
     }
 
+    private void LoadRevolutionTemplate()
+    {
+        var points = revolutionTemplate.SelectedIndex switch
+        {
+            // Сосуд
+            0 => new[]
+            {
+            new Point3D(0.8, 0.0, 0),
+            new Point3D(1.2, 0.2, 0),
+            new Point3D(1.5, 0.8, 0),
+            new Point3D(1.6, 1.5, 0),
+            new Point3D(1.4, 2.0, 0),
+            new Point3D(1.0, 2.3, 0),
+            new Point3D(0.6, 2.5, 0),
+            new Point3D(0.5, 2.8, 0),
+            new Point3D(0.6, 3.0, 0)
+        },
+
+            // Ваза
+            1 => new[]
+            {
+            new Point3D(0.5, 0.0, 0),
+            new Point3D(0.7, 0.3, 0),
+            new Point3D(1.0, 0.8, 0),
+            new Point3D(1.3, 1.3, 0),
+            new Point3D(1.4, 1.8, 0),
+            new Point3D(1.2, 2.2, 0),
+            new Point3D(0.8, 2.5, 0),
+            new Point3D(0.9, 2.8, 0),
+            new Point3D(1.2, 3.0, 0)
+        },
+
+            // Бокал
+            2 => new[]
+            {
+            new Point3D(0.0, 0.0, 0),
+            new Point3D(0.5, 0.0, 0),
+            new Point3D(0.6, 0.1, 0),
+            new Point3D(0.2, 0.2, 0),
+            new Point3D(0.12, 0.4, 0),
+            new Point3D(0.12, 1.1, 0),
+            new Point3D(0.25, 1.2, 0),
+            new Point3D(0.55, 1.35, 0),
+            new Point3D(0.8, 1.55, 0),
+            new Point3D(1.0, 1.85, 0),
+            new Point3D(1.1, 2.2, 0),
+            new Point3D(1.15, 2.5, 0)
+        },
+
+            // Ракета
+            3 => new[]
+            {
+            new Point3D(0.0, 4.0, 0),
+            new Point3D(0.25, 3.7, 0),
+            new Point3D(0.5, 3.3, 0),
+            new Point3D(0.65, 2.9, 0),
+            new Point3D(0.65, 1.2, 0),
+            new Point3D(0.7, 0.8, 0),
+            new Point3D(1.0, 0.25, 0),
+            new Point3D(0.75, 0.4, 0),
+            new Point3D(0.65, 0.6, 0),
+            new Point3D(0.65, 0.1, 0),
+            new Point3D(0.0, 0.0, 0)
+        },
+
+            // Песочные часы
+            4 => new[]
+            {
+            new Point3D(0.9, 0.0, 0),
+            new Point3D(1.0, 0.5, 0),
+            new Point3D(0.7, 1.0, 0),
+            new Point3D(0.3, 1.5, 0),
+            new Point3D(0.1, 1.9, 0),
+            new Point3D(0.3, 2.1, 0),
+            new Point3D(0.7, 2.5, 0),
+            new Point3D(1.0, 3.0, 0)
+        },
+
+            _ => throw new InvalidOperationException("Неизвестный шаблон.")
+        };
+
+        figureRevolution.Clear();
+
+        foreach (var point in points)
+        {
+            figureRevolution.AddPoint(point);
+        }
+
+        RefreshRevolutionPointList();
+
+        status.Text =
+            $"Загружен шаблон «{revolutionTemplate.SelectedItem}». Точек: {points.Length}";
+    }
+
     private void BuildFunctionSurface() =>
         throw new NotImplementedException("TODO 3: построение графика функции двух переменных.");
 
