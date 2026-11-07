@@ -139,17 +139,19 @@ public sealed class WireframeRenderer
 
         var aspect = (double)viewport.Width / viewport.Height;
         var cameraTarget = selectedItem ?? items[0];
-        if (perspective && !ReferenceEquals(framedItem, cameraTarget))
+        if (!ReferenceEquals(framedItem, cameraTarget))
         {
             Camera.FitTo(WorldPositions(cameraTarget), aspect);
             framedItem = cameraTarget;
         }
 
-        var view = perspective ? Camera.GetViewMatrix() : TransformMatrix.Identity;
+        var view = Camera.GetViewMatrix();
         var projection = perspective ? Projections.Perspective(aspect) : Projections.Axonometric();
         var frame = perspective
             ? ScreenFrame.Empty
             : GetAxonometricFrame(items, viewport, view * projection);
+        if (!perspective)
+            frame = frame with { Scale = frame.Scale * Camera.OrthographicZoom };
 
         if (showAxes)
             DrawAxes(graphics, viewport, view, projection, perspective);
