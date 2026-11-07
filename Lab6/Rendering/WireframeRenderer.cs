@@ -19,13 +19,11 @@ public sealed class WireframeRenderer
         Size viewport,
         Matrix<double> view,
         Matrix<double> projection,
-        bool perspective)
+        bool perspective,
+        ScreenFrame frame)
     {
         var transform = item.Model * view * projection;
         var vertices = item.Geometry.Positions.Select(point => Transform(point, transform)).ToArray();
-        var frame = perspective
-            ? ScreenFrame.Empty
-            : GetAxonometricFrame(item.Geometry.Positions, viewport, view * projection);
         var segments = new List<(PointF Start, PointF End)>();
 
         foreach (var (start, end) in item.Geometry.Edges)
@@ -41,14 +39,18 @@ public sealed class WireframeRenderer
     }
 
     private static ScreenFrame GetAxonometricFrame(
-        IReadOnlyList<Point3D> positions,
+        IReadOnlyList<SceneObject> items,
         Size viewport,
-        Matrix<double> transform)
+        Matrix<double> viewProjection)
     {
-        if (positions.Count == 0)
+        var points = items
+            .SelectMany(item => item.Geometry.Positions.Select(point =>
+                Transform(point, item.Model * viewProjection)))
+            .ToArray();
+
+        if (points.Length == 0)
             return ScreenFrame.Empty;
 
-        var points = positions.Select(point => Transform(point, transform)).ToArray();
         var minX = points.Min(point => point.X);
         var maxX = points.Max(point => point.X);
         var minY = points.Min(point => point.Y);
@@ -67,6 +69,11 @@ public sealed class WireframeRenderer
 
         return new ScreenFrame(scale, (minX + maxX) / 2, (minY + maxY) / 2);
     }
+
+    private static IReadOnlyList<Point3D> WorldPositions(SceneObject item) =>
+        item.Geometry.Positions
+            .Select(point => TransformMatrix.Transform(item.Model, point))
+            .ToArray();
 
     private static ClipPoint Transform(Point3D point, Matrix<double> matrix)
     {
@@ -88,16 +95,23 @@ public sealed class WireframeRenderer
         return new PointF((float)screenX, (float)screenY);
     }
 
-    public void DrawEdges(Graphics graphics, List<(PointF Start, PointF End)> segments, Pen pen)
+    private static void DrawEdges(Graphics graphics, List<(PointF Start, PointF End)> segments, Pen pen)
     {
         foreach (var (start, end) in segments)
             graphics.DrawLine(pen, start, end);
     }
 
-    public void DrawAxes(Graphics graphics, Size viewport, Matrix<double> view, Matrix<double> projection, bool perspective)
+    private static void DrawAxes(
+        Graphics graphics,
+        Size viewport,
+        Matrix<double> view,
+        Matrix<double> projection,
+        bool perspective)
     {
         var transform = view * projection;
-        var frame = perspective ? ScreenFrame.Empty : new ScreenFrame(AxisLengthInPixels / AxesGeometry.Length, 0, 0);
+        var frame = perspective
+            ? ScreenFrame.Empty
+            : new ScreenFrame(AxisLengthInPixels / AxesGeometry.Length, 0, 0);
 
         foreach (var (pa, pb, color) in AxesGeometry.Segments)
         {
@@ -105,33 +119,52 @@ public sealed class WireframeRenderer
             var b = Transform(pb, transform);
 
             using var pen = new Pen(color, 2f);
-            graphics.DrawLine(pen, ToScreen(a, viewport, perspective, frame), ToScreen(b, viewport, perspective, frame));
+            graphics.DrawLine(
+                pen,
+                ToScreen(a, viewport, perspective, frame),
+                ToScreen(b, viewport, perspective, frame));
         }
     }
 
-    public void Render(Graphics graphics, Size viewport, SceneObject item, bool perspective, bool showAxes = false)
+    public void Render(
+        Graphics graphics,
+        Size viewport,
+        IReadOnlyList<SceneObject> items,
+        SceneObject? selectedItem,
+        bool perspective,
+        bool showAxes = false)
     {
+        if (items.Count == 0)
+            return;
+
         var aspect = (double)viewport.Width / viewport.Height;
-        if (perspective && !ReferenceEquals(framedItem, item))
+        var cameraTarget = selectedItem ?? items[0];
+        if (perspective && !ReferenceEquals(framedItem, cameraTarget))
         {
-            Camera.FitTo(item.Geometry.Positions, aspect);
-            framedItem = item;
+            Camera.FitTo(WorldPositions(cameraTarget), aspect);
+            framedItem = cameraTarget;
         }
 
         var view = perspective ? Camera.GetViewMatrix() : TransformMatrix.Identity;
         var projection = perspective ? Projections.Perspective(aspect) : Projections.Axonometric();
+        var frame = perspective
+            ? ScreenFrame.Empty
+            : GetAxonometricFrame(items, viewport, view * projection);
 
         if (showAxes)
             DrawAxes(graphics, viewport, view, projection, perspective);
 
-        var segments = Project(item, viewport, view, projection, perspective);
         using var pen = new Pen(Color.Black);
-        DrawEdges(graphics, segments, pen);
+        foreach (var item in items)
+        {
+            var segments = Project(item, viewport, view, projection, perspective, frame);
+            DrawEdges(graphics, segments, pen);
+        }
     }
 
     private readonly record struct ClipPoint(double X, double Y, double Z, double W);
 
-    private readonly record struct ScreenFrame(double Scale, double CenterX, double CenterY)
+    public readonly record struct ScreenFrame(double Scale, double CenterX, double CenterY)
     {
         public static ScreenFrame Empty => new(0, 0, 0);
     }
