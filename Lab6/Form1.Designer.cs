@@ -523,40 +523,57 @@ partial class Form1
     }
 
     private static Control DoubleField(
-        string label, string firstLabel, Control first, string secondLabel, Control second)
+    string label,
+    string firstLabel, Control first,
+    string secondLabel, Control second)
     {
         var panel = new TableLayoutPanel
         {
-            Width = 280, Height = 82, ColumnCount = 2, RowCount = 2,
+            Width = 280,
+            Height = 82,
+            ColumnCount = 2,
+            RowCount = 3,
             Margin = new Padding(0, 3, 0, 4)
         };
+
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var caption = new Label { Text = label, Dock = DockStyle.Fill, ForeColor = EditorTheme.Muted };
+        var caption = new Label
+        {
+            Text = label,
+            Dock = DockStyle.Fill,
+            ForeColor = EditorTheme.Muted
+        };
+
         panel.Controls.Add(caption, 0, 0);
         panel.SetColumnSpan(caption, 2);
 
-        first.Dock = second.Dock = DockStyle.Fill;
-        first.Margin = new Padding(0, 18, 3, 0);
-        second.Margin = new Padding(3, 18, 0, 0);
-        first.AccessibleName = firstLabel;
-        second.AccessibleName = secondLabel;
-        panel.Controls.Add(first, 0, 1);
-        panel.Controls.Add(second, 1, 1);
+        panel.Controls.Add(new Label
+        {
+            Text = firstLabel,
+            Dock = DockStyle.Fill,
+            ForeColor = EditorTheme.Muted
+        }, 0, 1);
 
         panel.Controls.Add(new Label
         {
-            Text = firstLabel, AutoSize = true, ForeColor = EditorTheme.Muted,
-            BackColor = Color.Transparent, Margin = new Padding(3, 0, 0, 0)
-        }, 0, 1);
-        panel.Controls.Add(new Label
-        {
-            Text = secondLabel, AutoSize = true, ForeColor = EditorTheme.Muted,
-            BackColor = Color.Transparent, Margin = new Padding(6, 0, 0, 0)
+            Text = secondLabel,
+            Dock = DockStyle.Fill,
+            ForeColor = EditorTheme.Muted
         }, 1, 1);
+
+        first.Dock = second.Dock = DockStyle.Fill;
+        first.Margin = new Padding(0, 0, 3, 0);
+        second.Margin = new Padding(3, 0, 0, 0);
+
+        panel.Controls.Add(first, 0, 2);
+        panel.Controls.Add(second, 1, 2);
+
         return panel;
     }
 }

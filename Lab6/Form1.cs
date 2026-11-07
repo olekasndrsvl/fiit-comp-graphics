@@ -251,8 +251,48 @@ public partial class Form1 : Form
             $"Загружен шаблон «{revolutionTemplate.SelectedItem}». Точек: {points.Length}";
     }
 
-    private void BuildFunctionSurface() =>
-        throw new NotImplementedException("TODO 3: построение графика функции двух переменных.");
+
+    private void BuildFunctionSurface()
+    {
+        var function = surfaceFunction.SelectedIndex switch
+        {
+            0 => SurfaceFunction.SinXPlusCosY,
+            1 => SurfaceFunction.SinRadius,
+            2 => SurfaceFunction.XSquaredMinusYSquared,
+            3 => SurfaceFunction.CosXSinY,
+            _ => throw new InvalidOperationException("Выберите функцию.")
+        };
+
+        double xMin = (double)surfaceXMin.Value;
+        double xMax = (double)surfaceXMax.Value;
+        double yMin = (double)surfaceYMin.Value;
+        double yMax = (double)surfaceYMax.Value;
+
+        int xDivisions = (int)surfaceXDivisions.Value;
+        int yDivisions = (int)surfaceYDivisions.Value;
+
+        var geometry = FunctionSurfaceBuilder.Create(
+            function,
+            xMin,
+            xMax,
+            yMin,
+            yMax,
+            xDivisions,
+            yDivisions);
+
+        sceneObject = new SceneObject(geometry);
+        canvas.SceneObject = sceneObject;
+
+        currentObjPath = null;
+
+        foreach (var button in modelButtons)
+            MarkSelected(button, false);
+
+        objFileInfo.Text = "Поверхность функции";
+
+        UpdateScene("График функции построен");
+    }
+
 
 
     private SceneObject SelectedObject() =>
