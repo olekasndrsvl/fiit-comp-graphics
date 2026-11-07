@@ -9,6 +9,7 @@ partial class Form1
     private System.ComponentModel.IContainer? components;
     private DrawingCanvas canvas = null!;
     private ComboBox projectionPicker = null!;
+    private CheckBox backfaceCulling = null!, zBuffer = null!;
     private ComboBox rotationAxis = null!, reflectionPlane = null!;
     private ComboBox revolutionAxis = null!, surfaceFunction = null!;
     private NumericUpDown angle = null!, lineAngle = null!;
@@ -44,6 +45,7 @@ partial class Form1
         ClientSize = new Size(1220, 760);
         MinimumSize = new Size(980, 650);
         StartPosition = FormStartPosition.CenterScreen;
+        WindowState = FormWindowState.Maximized;
         Text = "lab6";
         BackColor = EditorTheme.Background;
         ForeColor = EditorTheme.Text;
@@ -85,13 +87,15 @@ partial class Form1
         var projectionBar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 3,
+            ColumnCount = 5,
             RowCount = 1,
             Margin = Padding.Empty,
             Padding = new Padding(8, 4, 8, 3),
             BackColor = EditorTheme.Background
         };
         projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
         projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82));
         projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210));
         projectionBar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -106,6 +110,25 @@ partial class Form1
             Margin = Padding.Empty
         };
         projectionBar.Controls.Add(status, 0, 0);
+        backfaceCulling = new CheckBox
+        {
+            Text = "Отсечение граней",
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            Margin = Padding.Empty
+        };
+        backfaceCulling.CheckedChanged += BackfaceCullingChanged;
+        projectionBar.Controls.Add(backfaceCulling, 1, 0);
+
+        zBuffer = new CheckBox
+        {
+            Text = "Z-буфер",
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            Margin = Padding.Empty
+        };
+        zBuffer.CheckedChanged += ZBufferChanged;
+        projectionBar.Controls.Add(zBuffer, 2, 0);
         projectionBar.Controls.Add(new Label
         {
             Text = "Проекция",
@@ -113,11 +136,11 @@ partial class Form1
             TextAlign = ContentAlignment.MiddleRight,
             ForeColor = EditorTheme.Muted,
             Margin = new Padding(0, 0, 8, 0)
-        }, 1, 0);
+        }, 3, 0);
         projectionPicker = Picker("Аксонометрическая", "Перспективная");
         projectionPicker.Dock = DockStyle.Fill;
         projectionPicker.Margin = Padding.Empty;
-        projectionBar.Controls.Add(projectionPicker, 2, 0);
+        projectionBar.Controls.Add(projectionPicker, 4, 0);
         viewport.Controls.Add(projectionBar, 0, 1);
         split.Panel1.Controls.Add(viewport);
 
@@ -186,7 +209,7 @@ partial class Form1
         var sources = new[]
         {
             (Icon: "Cube", Text: "Тела", Panel: CreateSolidModelsPanel()),
-            (Icon: "Rotate", Text: "Вращение", Panel: CreateRevolutionPanel()),
+            (Icon: "Rotate", Text: "Фигуры вращения", Panel: CreateRevolutionPanel()),
             (Icon: "Projection", Text: "Функция", Panel: CreateFunctionSurfacePanel())
         };
         for (var i = 0; i < sources.Length; i++)

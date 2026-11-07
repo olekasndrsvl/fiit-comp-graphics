@@ -387,6 +387,16 @@ public partial class Form1 : Form
         UpdateScene(item is null ? "Объект не выбран" : "Преобразования сброшены");
     }
 
+    private void BackfaceCullingChanged(object? sender, EventArgs e)
+    {
+        // TODO 1: реализовать отсечение нелицевых граней.
+    }
+
+    private void ZBufferChanged(object? sender, EventArgs e)
+    {
+        // TODO 2: реализовать алгоритм Z-буфера.
+    }
+
     private void RunAction(Action action)
     {
         try
