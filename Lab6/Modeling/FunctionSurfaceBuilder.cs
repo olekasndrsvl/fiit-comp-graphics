@@ -23,13 +23,13 @@ public static class FunctionSurfaceBuilder
         int yDivisions)
     {
         if (xMin >= xMax)
-            throw new ArgumentException("XMin должен быть меньше XMax.");
+            throw new ArgumentException("XMin РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РјРµРЅСЊС€Рµ XMax.");
 
         if (yMin >= yMax)
-            throw new ArgumentException("YMin должен быть меньше YMax.");
+            throw new ArgumentException("YMin РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РјРµРЅСЊС€Рµ YMax.");
 
         if (xDivisions < 1 || yDivisions < 1)
-            throw new ArgumentException("Количество разбиений должно быть положительным.");
+            throw new ArgumentException("РљРѕР»РёС‡РµСЃС‚РІРѕ СЂР°Р·Р±РёРµРЅРёР№ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ РїРѕР»РѕР¶РёС‚РµР»СЊРЅС‹Рј.");
 
         var positions = new List<Point3D>();
         var faces = new List<Polygon>();
@@ -37,7 +37,7 @@ public static class FunctionSurfaceBuilder
         double dx = (xMax - xMin) / xDivisions;
         double dy = (yMax - yMin) / yDivisions;
 
-        // Генерация вершин поверхности.
+        // Р“РµРЅРµСЂР°С†РёСЏ РІРµСЂС€РёРЅ РїРѕРІРµСЂС…РЅРѕСЃС‚Рё.
         for (int i = 0; i <= xDivisions; i++)
         {
             double x = xMin + i * dx;
@@ -51,7 +51,7 @@ public static class FunctionSurfaceBuilder
             }
         }
 
-        // Соединение соседних вершин четырёхугольными гранями.
+        // РЎРѕРµРґРёРЅРµРЅРёРµ СЃРѕСЃРµРґРЅРёС… РІРµСЂС€РёРЅ С‡РµС‚С‹СЂС‘С…СѓРіРѕР»СЊРЅС‹РјРё РіСЂР°РЅСЏРјРё.
         for (int i = 0; i < xDivisions; i++)
         {
             for (int j = 0; j < yDivisions; j++)
