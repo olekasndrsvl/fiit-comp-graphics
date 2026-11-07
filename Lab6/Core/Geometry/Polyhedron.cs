@@ -4,12 +4,20 @@ namespace Lab6.Core.Geometry;
 public sealed class Polyhedron
 {
     public List<Point3D> Positions { get; }
+    public List<TextureCoordinate> TextureCoordinates { get; }
+    public List<Point3D> Normals { get; }
     public List<Polygon> Faces { get; }
     public List<(int Start, int End)> Edges { get; } = [];
 
-    public Polyhedron(IEnumerable<Point3D> positions, IEnumerable<Polygon> faces)
+    public Polyhedron(
+        IEnumerable<Point3D> positions,
+        IEnumerable<Polygon> faces,
+        IEnumerable<TextureCoordinate>? textureCoordinates = null,
+        IEnumerable<Point3D>? normals = null)
     {
         Positions = positions.ToList();
+        TextureCoordinates = textureCoordinates?.ToList() ?? [];
+        Normals = normals?.ToList() ?? [];
         Faces = faces.ToList();
     }
 

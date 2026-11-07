@@ -6,11 +6,10 @@ public static class Projections
 {
     public static Matrix<double> Perspective(double aspect)
     {
-        const double fov = Math.PI / 3; // 60
         const double near = 0.1;
         const double far = 1000.0;
 
-        var scaleY = 1.0 / Math.Tan(fov / 2);
+        var scaleY = 1.0 / Math.Tan(Camera.FieldOfView / 2);
         var scaleX = scaleY / aspect;
 
         return Matrix<double>.Build.DenseOfArray(new double[,]

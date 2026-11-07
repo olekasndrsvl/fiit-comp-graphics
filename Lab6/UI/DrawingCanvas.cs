@@ -15,6 +15,8 @@ public sealed class DrawingCanvas : Panel
     public bool Perspective { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool ShowAxes { get; set; }
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Camera Camera => renderer.Camera;
 
     public DrawingCanvas()
     {

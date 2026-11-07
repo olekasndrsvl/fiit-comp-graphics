@@ -10,14 +10,23 @@ partial class Form1
     private DrawingCanvas canvas = null!;
     private ComboBox projectionPicker = null!;
     private ComboBox rotationAxis = null!, reflectionPlane = null!;
+    private ComboBox revolutionAxis = null!, surfaceFunction = null!;
     private NumericUpDown angle = null!, lineAngle = null!;
     private NumericUpDown[] translation = null!, scaleInputs = null!, lineStart = null!, lineEnd = null!;
+    private NumericUpDown[] revolutionPoint = null!;
+    private NumericUpDown revolutionDivisions = null!;
+    private NumericUpDown surfaceXMin = null!, surfaceXMax = null!, surfaceYMin = null!, surfaceYMax = null!;
+    private NumericUpDown surfaceXDivisions = null!, surfaceYDivisions = null!;
     private CheckBox rotationCenter = null!, scaleCenter = null!;
-    private Label status = null!, modelInfo = null!, centerInfo = null!;
+    private Label status = null!, modelInfo = null!, centerInfo = null!, objFileInfo = null!;
+    private ListBox revolutionPoints = null!;
+    private ComboBox revolutionTemplate = null!;
     private TabControl toolTabs = null!;
     private readonly List<Panel> operationPanels = [];
     private readonly List<RadioButton> operationButtons = [];
     private readonly List<RadioButton> modelButtons = [];
+    private readonly List<Panel> modelSourcePanels = [];
+    private readonly List<RadioButton> modelSourceButtons = [];
 
     protected override void Dispose(bool disposing)
     {
@@ -116,9 +125,46 @@ partial class Form1
 
     private TabPage CreateModelPage()
     {
-        var page = Page("Модели", out var panel);
-        panel.Controls.Add(Title("Правильные многогранники"));
+        var page = new TabPage("Модели") { BackColor = EditorTheme.Background, Padding = new Padding(8) };
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
         var palette = Palette();
+        palette.Dock = DockStyle.Fill;
+        var deck = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty };
+        var sources = new[]
+        {
+            (Icon: "Cube", Text: "Тела", Panel: CreateSolidModelsPanel()),
+            (Icon: "Rotate", Text: "Вращение", Panel: CreateRevolutionPanel()),
+            (Icon: "Projection", Text: "Функция", Panel: CreateFunctionSurfacePanel())
+        };
+        for (var i = 0; i < sources.Length; i++)
+        {
+            var index = i;
+            var button = IconButton(sources[i].Icon, sources[i].Text, () => SelectModelSource(index));
+            modelSourceButtons.Add(button);
+            palette.Controls.Add(button);
+            sources[i].Panel.Visible = false;
+            modelSourcePanels.Add(sources[i].Panel);
+            deck.Controls.Add(sources[i].Panel);
+        }
+        SelectModelSource(0);
+        layout.Controls.Add(palette, 0, 0);
+        layout.Controls.Add(deck, 0, 1);
+        page.Controls.Add(layout);
+        return page;
+    }
+
+    private FlowLayoutPanel CreateSolidModelsPanel()
+    {
+        var panel = Stack();
+        panel.Controls.Add(Title("Правильные многогранники"));
+        var solids = Palette();
         var names = new[]
         {
             ("Tetrahedron", "Тетраэдр"), ("Cube", "Гексаэдр"), ("Octahedron", "Октаэдр"),
@@ -129,19 +175,103 @@ partial class Form1
             var index = i;
             var button = IconButton(names[i].Item1, names[i].Item2, () => SelectModel(index));
             modelButtons.Add(button);
-            palette.Controls.Add(button);
+            solids.Controls.Add(button);
         }
         MarkSelected(modelButtons[selectedModel], true);
         void FitModelPalette()
         {
-            var columns = Math.Max(1, palette.ClientSize.Width / 96);
-            palette.Height = ((modelButtons.Count + columns - 1) / columns) * 74;
+            var columns = Math.Max(1, solids.ClientSize.Width / 96);
+            solids.Height = ((modelButtons.Count + columns - 1) / columns) * 74;
         }
-        palette.SizeChanged += (_, _) => FitModelPalette();
+        solids.SizeChanged += (_, _) => FitModelPalette();
         FitModelPalette();
-        panel.Controls.Add(palette);
+        panel.Controls.Add(solids);
         panel.Controls.Add(ActionButton("Создать заново", () => SelectModel(selectedModel)));
-        return page;
+
+        panel.Controls.Add(Title("Wavefront OBJ"));
+        panel.Controls.Add(ActionRow(
+            ("Загрузить", LoadObjModel),
+            ("Сохранить", SaveObjModel)));
+        objFileInfo = Note("OBJ-файл не выбран");
+        panel.Controls.Add(objFileInfo);
+        return panel;
+    }
+
+    private FlowLayoutPanel CreateRevolutionPanel()
+    {
+        var panel = Stack();
+
+        panel.Controls.Add(Title("Фигура вращения"));
+        panel.Controls.Add(Note("Выберите шаблон или задайте точки вручную.", 38));
+
+        revolutionTemplate = Picker(
+            "Сосуд",
+            "Ваза",
+            "Бокал",
+            "Ракета",
+            "Песочные часы"
+        );
+
+        panel.Controls.Add(Field("Шаблон образующей", revolutionTemplate));
+
+        panel.Controls.Add(ActionButton("Загрузить шаблон", LoadRevolutionTemplate));
+
+        panel.Controls.Add(Note("Задайте точки образующей в порядке соединения.", 38));
+
+        revolutionPoint = Triple(0, 0, 0, -10000, 10000);
+        panel.Controls.Add(TripleField("Новая точка образующей", revolutionPoint));
+
+        panel.Controls.Add(ActionRow(
+            ("Добавить", AddRevolutionPoint),
+            ("Удалить", RemoveRevolutionPoint)));
+
+        revolutionPoints = new ListBox
+        {
+            Width = 280,
+            Height = 120,
+            Margin = new Padding(0, 4, 0, 4),
+            BackColor = EditorTheme.Input,
+            ForeColor = EditorTheme.Text
+        };
+
+        panel.Controls.Add(revolutionPoints);
+        panel.Controls.Add(ActionButton("Очистить образующую", ClearRevolutionPoints));
+
+        revolutionAxis = Picker("X", "Y", "Z");
+        revolutionDivisions = Number(3, 360, 24, 0, 1);
+
+        panel.Controls.Add(Field("Ось вращения", revolutionAxis));
+        panel.Controls.Add(Field("Количество разбиений", revolutionDivisions));
+        panel.Controls.Add(ActionButton("Построить фигуру", BuildRevolutionModel));
+
+        return panel;
+    }
+
+    private FlowLayoutPanel CreateFunctionSurfacePanel()
+    {
+        var panel = Stack();
+        panel.Controls.Add(Title("График функции двух переменных"));
+
+        surfaceFunction = Picker(
+            "z = sin(x) + cos(y)",
+            "z = sin(sqrt(x² + y²))",
+            "z = x² - y²",
+            "z = cos(x) · sin(y)");
+        panel.Controls.Add(Field("Функция f(x, y)", surfaceFunction));
+
+        surfaceXMin = Number(-1000, 1000, -5);
+        surfaceXMax = Number(-1000, 1000, 5);
+        surfaceYMin = Number(-1000, 1000, -5);
+        surfaceYMax = Number(-1000, 1000, 5);
+        panel.Controls.Add(DoubleField("Диапазон X", "от", surfaceXMin, "до", surfaceXMax));
+        panel.Controls.Add(DoubleField("Диапазон Y", "от", surfaceYMin, "до", surfaceYMax));
+
+        surfaceXDivisions = Number(1, 500, 30, 0, 1);
+        surfaceYDivisions = Number(1, 500, 30, 0, 1);
+        panel.Controls.Add(DoubleField(
+            "Количество разбиений", "по X", surfaceXDivisions, "по Y", surfaceYDivisions));
+        panel.Controls.Add(ActionButton("Построить поверхность", BuildFunctionSurface));
+        return panel;
     }
 
     private TabPage CreateTransformPage()
@@ -226,6 +356,16 @@ partial class Form1
             MarkSelected(operationButtons[i], i == index);
         }
         operationPanels[index].BringToFront();
+    }
+
+    private void SelectModelSource(int index)
+    {
+        for (var i = 0; i < modelSourcePanels.Count; i++)
+        {
+            modelSourcePanels[i].Visible = i == index;
+            MarkSelected(modelSourceButtons[i], i == index);
+        }
+        modelSourcePanels[index].BringToFront();
     }
 
     private static FlowLayoutPanel Stack()
@@ -315,6 +455,24 @@ partial class Form1
         return button;
     }
 
+    private Control ActionRow(params (string Text, Action Action)[] actions)
+    {
+        var row = new TableLayoutPanel
+        {
+            Width = 280, Height = 44, ColumnCount = actions.Length,
+            Margin = new Padding(0, 2, 0, 4)
+        };
+        for (var i = 0; i < actions.Length; i++)
+        {
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F / actions.Length));
+            var button = ActionButton(actions[i].Text, actions[i].Action);
+            button.Dock = DockStyle.Fill;
+            button.Margin = new Padding(i == 0 ? 0 : 3, 2, i == actions.Length - 1 ? 0 : 3, 2);
+            row.Controls.Add(button, i, 0);
+        }
+        return row;
+    }
+
     private static CheckBox Check(string text, bool value) => new()
     {
         Text = text, Checked = value, Width = 280, Height = 42,
@@ -361,6 +519,61 @@ partial class Form1
             inputs[i].Margin = new Padding(1, 0, 4, 0);
             panel.Controls.Add(inputs[i], i, 2);
         }
+        return panel;
+    }
+
+    private static Control DoubleField(
+    string label,
+    string firstLabel, Control first,
+    string secondLabel, Control second)
+    {
+        var panel = new TableLayoutPanel
+        {
+            Width = 280,
+            Height = 82,
+            ColumnCount = 2,
+            RowCount = 3,
+            Margin = new Padding(0, 3, 0, 4)
+        };
+
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var caption = new Label
+        {
+            Text = label,
+            Dock = DockStyle.Fill,
+            ForeColor = EditorTheme.Muted
+        };
+
+        panel.Controls.Add(caption, 0, 0);
+        panel.SetColumnSpan(caption, 2);
+
+        panel.Controls.Add(new Label
+        {
+            Text = firstLabel,
+            Dock = DockStyle.Fill,
+            ForeColor = EditorTheme.Muted
+        }, 0, 1);
+
+        panel.Controls.Add(new Label
+        {
+            Text = secondLabel,
+            Dock = DockStyle.Fill,
+            ForeColor = EditorTheme.Muted
+        }, 1, 1);
+
+        first.Dock = second.Dock = DockStyle.Fill;
+        first.Margin = new Padding(0, 0, 3, 0);
+        second.Margin = new Padding(3, 0, 0, 0);
+
+        panel.Controls.Add(first, 0, 2);
+        panel.Controls.Add(second, 1, 2);
+
         return panel;
     }
 }
