@@ -10,7 +10,7 @@ public sealed class DrawingCanvas : Panel
     public event Action<string>? RenderPending;
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public SceneObject? SceneObject { get; set; }
+    public Scene? Scene { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool Perspective { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -35,10 +35,11 @@ public sealed class DrawingCanvas : Panel
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
-        if (SceneObject is null || ClientSize.Width <= 0 || ClientSize.Height <= 0) return;
+        if (Scene is null || Scene.Objects.Count == 0 || ClientSize.Width <= 0 || ClientSize.Height <= 0)
+            return;
         try
         {
-            renderer.Render(e.Graphics, ClientSize, SceneObject, Perspective, ShowAxes);
+            renderer.Render(e.Graphics, ClientSize, Scene.Objects, Scene.SelectedObject, Perspective, ShowAxes);
         }
         catch (NotImplementedException ex)
         {
