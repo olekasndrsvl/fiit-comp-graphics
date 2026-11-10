@@ -216,7 +216,6 @@ public sealed class WireframeRenderer
 
         var view = Camera.GetViewMatrix();
         var rotation = BuildViewRotation();
-        var view = perspective ? rotation * Camera.GetViewMatrix() : rotation;
         var projection = perspective ? Projections.Perspective(aspect) : Projections.Axonometric();
         var frame = perspective
             ? ScreenFrame.Empty
