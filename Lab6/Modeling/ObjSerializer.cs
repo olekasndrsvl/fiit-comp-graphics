@@ -16,7 +16,7 @@ public static class ObjSerializer
 
         var positions = new List<Point3D>();
         var textureCoordinates = new List<TextureCoordinate>();
-        var normals = new List<Point3D>();
+        var normals = new List<Normal>();
         var faces = new List<Polygon>();
 
         var lineNumber = 0;
@@ -114,10 +114,10 @@ public static class ObjSerializer
             parts.Length > 3 ? ParseNumber(parts[3], lineNumber) : null);
     }
 
-    private static Point3D ParseNormal(string[] parts, int lineNumber)
+    private static Normal ParseNormal(string[] parts, int lineNumber)
     {
         Require(parts, 4, lineNumber, "Нормаль vn должна содержать координаты X, Y и Z.");
-        return new Point3D(
+        return new Normal(
             ParseNumber(parts[1], lineNumber),
             ParseNumber(parts[2], lineNumber),
             ParseNumber(parts[3], lineNumber));
@@ -179,7 +179,7 @@ public static class ObjSerializer
             throw new FormatException($"Индекс {kind} {index + 1} выходит за пределы списка.");
     }
 
-    private static IReadOnlyList<Point3D> TransformNormals(IReadOnlyList<Point3D> normals, Matrix<double>? transform)
+    private static IReadOnlyList<Normal> TransformNormals(IReadOnlyList<Normal> normals, Matrix<double>? transform)
     {
         if (transform is null || normals.Count == 0)
             return normals;
@@ -200,8 +200,8 @@ public static class ObjSerializer
             var vector = Vector<double>.Build.DenseOfArray([normal.X, normal.Y, normal.Z]) * normalMatrix;
             var length = vector.L2Norm();
             return length < 1e-12
-                ? new Point3D(0, 0, 0)
-                : new Point3D(vector[0] / length, vector[1] / length, vector[2] / length);
+                ? new Normal(0, 0, 0)
+                : new Normal(vector[0] / length, vector[1] / length, vector[2] / length);
         }).ToList();
     }
 
