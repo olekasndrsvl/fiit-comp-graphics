@@ -10,9 +10,50 @@ public sealed class WireframeRenderer
     private const double DefaultVisibleRange = 4;
     private const double ViewportPadding = 20;
     private const double AxisLengthInPixels = 50;
+
     private SceneObject? framedItem;
+    private double viewYaw;
+    private double viewPitch;
+    private double objectRotationAngle;
 
     public Camera Camera { get; } = new();
+    public bool BackfaceCulling { get; set; }
+
+    public double ObjectRotationAngle
+    {
+        get => objectRotationAngle;
+        set => objectRotationAngle = value;
+    }
+
+    public void RotateView(double deltaYaw, double deltaPitch)
+    {
+        viewYaw += deltaYaw;
+        viewPitch = Math.Clamp(viewPitch + deltaPitch,
+            -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
+    }
+
+    public void ResetViewRotation()
+    {
+        viewYaw = 0;
+        viewPitch = 0;
+    }
+
+    private Matrix<double> BuildViewRotation()
+    {
+        if (Math.Abs(viewYaw) < 1e-9 && Math.Abs(viewPitch) < 1e-9)
+            return TransformMatrix.Identity;
+        return TransformMatrix.Rotation(0, 1, 0, viewYaw)
+             * TransformMatrix.Rotation(1, 0, 0, viewPitch);
+    }
+
+    private Matrix<double> GetObjectRotation(SceneObject item)
+    {
+        if (Math.Abs(objectRotationAngle) < 1e-9)
+            return TransformMatrix.Identity;
+        var rotation = TransformMatrix.Rotation(0, 1, 0, objectRotationAngle);
+        try { return TransformMatrix.Around(item.Center, rotation); }
+        catch (NotImplementedException) { return rotation; }
+    }
 
     public List<(PointF Start, PointF End)> Project(
         SceneObject item,
@@ -22,30 +63,60 @@ public sealed class WireframeRenderer
         bool perspective,
         ScreenFrame frame)
     {
-        var transform = item.Model * view * projection;
-        var vertices = item.Geometry.Positions.Select(point => Transform(point, transform)).ToArray();
-        var segments = new List<(PointF Start, PointF End)>();
+        var objectRotation = GetObjectRotation(item);
+        var modelView = item.Model * objectRotation * view;
+        var transform = modelView * projection;
 
+        var viewPositions = item.Geometry.Positions
+            .Select(p => TransformToPoint3D(p, modelView))
+            .ToArray();
+
+        var clipVertices = item.Geometry.Positions
+            .Select(point => Transform(point, transform))
+            .ToArray();
+
+        HashSet<(int, int)>? visibleEdges = null;
+        if (BackfaceCulling)
+        {
+            visibleEdges = BackfaceCuller.ComputeVisibleEdges(item, viewPositions, perspective);
+        }
+
+        var segments = new List<(PointF Start, PointF End)>();
         foreach (var (start, end) in item.Geometry.Edges)
         {
-            var a = vertices[start];
-            var b = vertices[end];
+            if (visibleEdges is not null)
+            {
+                var key = start < end ? (start, end) : (end, start);
+                if (!visibleEdges.Contains(key)) continue;
+            }
+
             segments.Add((
-                ToScreen(a, viewport, perspective, frame),
-                ToScreen(b, viewport, perspective, frame)));
+                ToScreen(clipVertices[start], viewport, perspective, frame),
+                ToScreen(clipVertices[end], viewport, perspective, frame)));
         }
 
         return segments;
     }
 
-    private static ScreenFrame GetAxonometricFrame(
+    private static Point3D TransformToPoint3D(Point3D point, Matrix<double> matrix)
+    {
+        var position = Vector<double>.Build.DenseOfArray([point.X, point.Y, point.Z, 1]);
+        var result = position * matrix;
+        return new Point3D(result[0], result[1], result[2]);
+    }
+
+    private ScreenFrame GetAxonometricFrame(
         IReadOnlyList<SceneObject> items,
         Size viewport,
         Matrix<double> viewProjection)
     {
         var points = items
-            .SelectMany(item => item.Geometry.Positions.Select(point =>
-                Transform(point, item.Model * viewProjection)))
+            .SelectMany(item =>
+            {
+                var rotation = GetObjectRotation(item);
+                return item.Geometry.Positions.Select(point =>
+                    Transform(point, item.Model * rotation * viewProjection));
+            })
             .ToArray();
 
         if (points.Length == 0)
@@ -62,10 +133,8 @@ public sealed class WireframeRenderer
         var availableWidth = Math.Max(1, viewport.Width - 2 * ViewportPadding);
         var availableHeight = Math.Max(1, viewport.Height - 2 * ViewportPadding);
 
-        if (width > 0)
-            scale = Math.Min(scale, availableWidth / width);
-        if (height > 0)
-            scale = Math.Min(scale, availableHeight / height);
+        if (width > 0) scale = Math.Min(scale, availableWidth / width);
+        if (height > 0) scale = Math.Min(scale, availableHeight / height);
 
         return new ScreenFrame(scale, (minX + maxX) / 2, (minY + maxY) / 2);
     }
@@ -145,7 +214,8 @@ public sealed class WireframeRenderer
             framedItem = cameraTarget;
         }
 
-        var view = perspective ? Camera.GetViewMatrix() : TransformMatrix.Identity;
+        var rotation = BuildViewRotation();
+        var view = perspective ? rotation * Camera.GetViewMatrix() : rotation;
         var projection = perspective ? Projections.Perspective(aspect) : Projections.Axonometric();
         var frame = perspective
             ? ScreenFrame.Empty

@@ -19,6 +19,7 @@ public partial class Form1 : Form
         canvas.Scene = scene;
         canvas.RenderPending += m => status.Text = m;
         canvas.ShowAxes = true;
+        canvas.IsRotating = autoRotate.Checked;
         Shown += (_, _) => UpdateScene("Выберите модель");
     }
 
@@ -389,7 +390,23 @@ public partial class Form1 : Form
 
     private void BackfaceCullingChanged(object? sender, EventArgs e)
     {
-        // TODO 1: реализовать отсечение нелицевых граней.
+        if (canvas is null) return;
+
+        // Передаем состояние чекбокса в канву
+        canvas.BackfaceCulling = backfaceCulling.Checked;
+
+        UpdateScene(backfaceCulling.Checked
+            ? "Отсечение нелицевых граней включено"
+            : "Отсечение нелицевых граней выключено");
+    }
+
+    private void AutoRotateChanged(object? sender, EventArgs e)
+    {
+        if (canvas is null) return;
+        canvas.IsRotating = autoRotate.Checked;
+        UpdateScene(autoRotate.Checked
+            ? "Автоматическое вращение включено"
+            : "Автоматическое вращение остановлено");
     }
 
     private void ZBufferChanged(object? sender, EventArgs e)
