@@ -127,7 +127,16 @@ public sealed class WireframeRenderer
         HashSet<(int, int)>? visibleEdges = null;
         if (BackfaceCulling)
         {
-            visibleEdges = BackfaceCuller.ComputeVisibleEdges(item, viewPositions, perspective);
+            var viewDirection = perspective
+                ? new Normal(0, 0, 1)
+                : new Normal(projection[0, 2], projection[1, 2], projection[2, 2]);
+
+            visibleEdges = BackfaceCuller.ComputeVisibleEdges(
+                item,
+                viewPositions,
+                perspective,
+                viewDirection,
+                new Point3D(0, 0, 0));
         }
 
 
