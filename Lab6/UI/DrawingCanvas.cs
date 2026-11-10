@@ -26,6 +26,8 @@ public sealed class DrawingCanvas : Panel
     public bool ShowAxes { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public Camera Camera => renderer.Camera;
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool ZBufferEnabled { get; set; }
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool BackfaceCulling
@@ -133,7 +135,7 @@ public sealed class DrawingCanvas : Panel
             return;
         try
         {
-            renderer.Render(e.Graphics, ClientSize, Scene.Objects, Scene.SelectedObject, Perspective, ShowAxes);
+            renderer.Render(e.Graphics, ClientSize, Scene.Objects, Scene.SelectedObject, Perspective, ShowAxes, ZBufferEnabled);
         }
         catch (NotImplementedException ex)
         {

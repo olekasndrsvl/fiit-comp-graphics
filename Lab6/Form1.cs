@@ -411,7 +411,8 @@ public partial class Form1 : Form
 
     private void ZBufferChanged(object? sender, EventArgs e)
     {
-        // TODO 2: реализовать алгоритм Z-буфера.
+        canvas.ZBufferEnabled = zBuffer.Checked;
+        canvas.RefreshFrame();
     }
 
     private void RunAction(Action action)
