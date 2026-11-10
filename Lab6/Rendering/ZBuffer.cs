@@ -1,5 +1,7 @@
 
 using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 
 namespace Lab6.Rendering;
 
@@ -10,28 +12,33 @@ public sealed class ZBuffer
 	private float minDepth;
 	private float maxDepth;
 
-	private float[,]? depthBuffer;
-	private Color[,]? colorBuffer;
+	private float[]? depthBuffer;
+	private int[]? colorBuffer;
 
-	public void Initialize(Size viewport, float minDepth = 0, float maxDepth = 1)
+	private int width;
+	private int height;
+
+	public void Initialize(Size viewport, float minDepth, float maxDepth)
 	{
+		width = viewport.Width;
+		height = viewport.Height;
+
 		this.minDepth = minDepth;
 		this.maxDepth = maxDepth;
 
-		depthBuffer = new float[viewport.Width, viewport.Height];
-		colorBuffer = new Color[viewport.Width, viewport.Height];
+		int bufferSize = width * height;
 
-		for (int x = 0; x < viewport.Width; x++)
+		if (depthBuffer == null || depthBuffer.Length != bufferSize)
 		{
-			for (int y = 0; y < viewport.Height; y++)
-			{
-				depthBuffer[x, y] = float.PositiveInfinity;
-				colorBuffer[x, y] = Color.White;
-			}
+			depthBuffer = new float[bufferSize];
+			colorBuffer = new int[bufferSize];
 		}
+
+		Array.Fill(depthBuffer, float.PositiveInfinity);
+		Array.Fill(colorBuffer!, Color.White.ToArgb());
 	}
 
-	private Color GetDepthColor(float depth)
+	private int GetDepthColor(float depth)
 	{
 		float range = maxDepth - minDepth;
 
@@ -43,7 +50,7 @@ public sealed class ZBuffer
 
 		int channel = (int)(25 + intensity * 230);
 
-		return Color.FromArgb(channel, channel, channel);
+		return Color.FromArgb(channel, channel, channel).ToArgb();
 	}
 
 	internal void RasterizePolygon(
@@ -62,6 +69,7 @@ public sealed class ZBuffer
 				viewport);
 		}
 	}
+
 
 	private void RasterizeTriangle(
 		ScreenPoint a,
@@ -88,50 +96,104 @@ public sealed class ZBuffer
 		int maxY = Math.Min(viewport.Height - 1,
 			(int)Math.Ceiling(Math.Max(a.Y, Math.Max(b.Y, c.Y))));
 
+		float inverseArea = 1f / area;
+
+		float w1StepX = -(c.Y - b.Y) * inverseArea;
+		float w2StepX = -(a.Y - c.Y) * inverseArea;
+		float w3StepX = -(b.Y - a.Y) * inverseArea;
+
+		float w1StepY = (c.X - b.X) * inverseArea;
+		float w2StepY = (a.X - c.X) * inverseArea;
+		float w3StepY = (b.X - a.X) * inverseArea;
+
 		for (int y = minY; y <= maxY; y++)
 		{
+			float py = y + 0.5f;
+			float px = minX + 0.5f;
+
+			float w1 =
+				((b.X - px) * (c.Y - py) -
+				 (b.Y - py) * (c.X - px)) * inverseArea;
+
+			float w2 =
+				((c.X - px) * (a.Y - py) -
+				 (c.Y - py) * (a.X - px)) * inverseArea;
+
+			float w3 = 1f - w1 - w2;
+
+			int rowOffset = y * width;
+
 			for (int x = minX; x <= maxX; x++)
 			{
-				float px = x + 0.5f;
-				float py = y + 0.5f;
-
-				float w1 =
-					((b.X - px) * (c.Y - py) -
-					 (b.Y - py) * (c.X - px)) / area;
-
-				float w2 =
-					((c.X - px) * (a.Y - py) -
-					 (c.Y - py) * (a.X - px)) / area;
-
-				float w3 = 1f - w1 - w2;
-
-				if (w1 < 0 || w2 < 0 || w3 < 0)
-					continue;
-
-				float z = w1 * a.Z + w2 * b.Z + w3 * c.Z;
-
-				if (z < depthBuffer![x, y])
+				if (w1 >= 0 && w2 >= 0 && w3 >= 0)
 				{
-					depthBuffer[x, y] = z;
-					colorBuffer![x, y] = GetDepthColor(z);
+					float z = w1 * a.Z + w2 * b.Z + w3 * c.Z;
+
+					int index = rowOffset + x;
+
+					if (z < depthBuffer![index])
+					{
+						depthBuffer[index] = z;
+						colorBuffer![index] = GetDepthColor(z);
+					}
 				}
+
+				w1 += w1StepX;
+				w2 += w2StepX;
+				w3 += w3StepX;
 			}
 		}
 	}
+
 
 	public void Draw(Graphics graphics, Size viewport)
 	{
 		if (colorBuffer == null)
 			return;
 
-		using var bitmap = new Bitmap(viewport.Width, viewport.Height);
+		using var bitmap = new Bitmap(
+			width,
+			height,
+			PixelFormat.Format32bppArgb);
 
-		for (int x = 0; x < viewport.Width; x++)
+		var rectangle = new Rectangle(0, 0, width, height);
+
+		BitmapData bitmapData = bitmap.LockBits(
+			rectangle,
+			ImageLockMode.WriteOnly,
+			PixelFormat.Format32bppArgb);
+
+		try
 		{
-			for (int y = 0; y < viewport.Height; y++)
+			int stride = bitmapData.Stride;
+
+			if (stride == width * sizeof(int))
 			{
-				bitmap.SetPixel(x, y, colorBuffer[x, y]);
+				Marshal.Copy(
+					colorBuffer,
+					0,
+					bitmapData.Scan0,
+					colorBuffer.Length);
 			}
+			else
+			{
+				for (int y = 0; y < height; y++)
+				{
+					IntPtr row = IntPtr.Add(
+						bitmapData.Scan0,
+						y * stride);
+
+					Marshal.Copy(
+						colorBuffer,
+						y * width,
+						row,
+						width);
+				}
+			}
+		}
+		finally
+		{
+			bitmap.UnlockBits(bitmapData);
 		}
 
 		graphics.DrawImageUnscaled(bitmap, 0, 0);
