@@ -28,6 +28,7 @@ partial class Form1
     private readonly List<RadioButton> modelButtons = [];
     private readonly List<Panel> modelSourcePanels = [];
     private readonly List<RadioButton> modelSourceButtons = [];
+    private CheckBox autoRotate = null!;
 
     protected override void Dispose(bool disposing)
     {
@@ -87,18 +88,20 @@ partial class Form1
         var projectionBar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 5,
+            ColumnCount = 6,
             RowCount = 1,
             Margin = Padding.Empty,
             Padding = new Padding(8, 4, 8, 3),
             BackColor = EditorTheme.Background
         };
-        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
-        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
-        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82));
-        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210));
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); 
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120)); 
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150)); 
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100)); 
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82)); 
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210)); 
         projectionBar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
         status = new Label
         {
             Dock = DockStyle.Fill,
@@ -110,6 +113,17 @@ partial class Form1
             Margin = Padding.Empty
         };
         projectionBar.Controls.Add(status, 0, 0);
+
+        autoRotate = new CheckBox
+        {
+            Text = "Автоповорот",
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            Margin = Padding.Empty
+        };
+        autoRotate.CheckedChanged += AutoRotateChanged;
+        projectionBar.Controls.Add(autoRotate, 1, 0);
+
         backfaceCulling = new CheckBox
         {
             Text = "Отсечение граней",
@@ -118,7 +132,7 @@ partial class Form1
             Margin = Padding.Empty
         };
         backfaceCulling.CheckedChanged += BackfaceCullingChanged;
-        projectionBar.Controls.Add(backfaceCulling, 1, 0);
+        projectionBar.Controls.Add(backfaceCulling, 2, 0);
 
         zBuffer = new CheckBox
         {
@@ -128,7 +142,8 @@ partial class Form1
             Margin = Padding.Empty
         };
         zBuffer.CheckedChanged += ZBufferChanged;
-        projectionBar.Controls.Add(zBuffer, 2, 0);
+        projectionBar.Controls.Add(zBuffer, 3, 0);
+
         projectionBar.Controls.Add(new Label
         {
             Text = "Проекция",
@@ -136,11 +151,13 @@ partial class Form1
             TextAlign = ContentAlignment.MiddleRight,
             ForeColor = EditorTheme.Muted,
             Margin = new Padding(0, 0, 8, 0)
-        }, 3, 0);
+        }, 4, 0);
+
         projectionPicker = Picker("Аксонометрическая", "Перспективная");
         projectionPicker.Dock = DockStyle.Fill;
         projectionPicker.Margin = Padding.Empty;
-        projectionBar.Controls.Add(projectionPicker, 4, 0);
+        projectionBar.Controls.Add(projectionPicker, 5, 0);
+
         viewport.Controls.Add(projectionBar, 0, 1);
         split.Panel1.Controls.Add(viewport);
 
