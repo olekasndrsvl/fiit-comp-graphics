@@ -13,7 +13,7 @@ public sealed class ZBuffer
 	private float[,]? depthBuffer;
 	private Color[,]? colorBuffer;
 
-	public void Initialize(Size viewport, bool perspective, float minDepth = 0, float maxDepth = 1)
+	public void Initialize(Size viewport, float minDepth = 0, float maxDepth = 1)
 	{
 		this.minDepth = minDepth;
 		this.maxDepth = maxDepth;
@@ -31,33 +31,24 @@ public sealed class ZBuffer
 		}
 	}
 
-	private Color GetDepthColor(float depth, bool perspective)
+	private Color GetDepthColor(float depth)
 	{
-		float normalizedDepth;
+		float range = maxDepth - minDepth;
 
-		if (perspective)
-		{
-			normalizedDepth = depth;
-		}
-		else
-		{
-			float range = maxDepth - minDepth;
-
-			normalizedDepth = range > 1e-6f
-				? (depth - minDepth) / range
-				: 0.5f;
-		}
+		float normalizedDepth = range > 1e-6f
+			? (depth - minDepth) / range
+			: 0.5f;
 
 		float intensity = 1f - Math.Clamp(normalizedDepth, 0f, 1f);
+
 		int channel = (int)(25 + intensity * 230);
 
 		return Color.FromArgb(channel, channel, channel);
 	}
 
-	public void RasterizePolygon(
+	internal void RasterizePolygon(
 		IReadOnlyList<ScreenPoint> vertices,
-		Size viewport,
-		bool perspective)
+		Size viewport)
 	{
 		if (vertices.Count < 3 || depthBuffer == null || colorBuffer == null)
 			return;
@@ -68,8 +59,7 @@ public sealed class ZBuffer
 				vertices[0],
 				vertices[i],
 				vertices[i + 1],
-				viewport,
-				perspective);
+				viewport);
 		}
 	}
 
@@ -77,8 +67,7 @@ public sealed class ZBuffer
 		ScreenPoint a,
 		ScreenPoint b,
 		ScreenPoint c,
-		Size viewport,
-		bool perspective)
+		Size viewport)
 	{
 		float area =
 			(b.X - a.X) * (c.Y - a.Y) -
@@ -124,7 +113,7 @@ public sealed class ZBuffer
 				if (z < depthBuffer![x, y])
 				{
 					depthBuffer[x, y] = z;
-					colorBuffer![x, y] = GetDepthColor(z, perspective);
+					colorBuffer![x, y] = GetDepthColor(z);
 				}
 			}
 		}

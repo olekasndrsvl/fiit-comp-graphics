@@ -27,9 +27,10 @@ public sealed class WireframeRenderer
     }
 
     private (float Min, float Max) CalculateDepthRange(
-        IReadOnlyList<SceneObject> items,
-        Matrix<double> view,
-        Matrix<double> projection)
+    IReadOnlyList<SceneObject> items,
+    Matrix<double> view,
+    Matrix<double> projection,
+    bool perspective)
     {
         float minDepth = float.PositiveInfinity;
         float maxDepth = float.NegativeInfinity;
@@ -41,7 +42,13 @@ public sealed class WireframeRenderer
             foreach (var point in item.Geometry.Positions)
             {
                 var clipPoint = Transform(point, transform);
-                float depth = (float)clipPoint.Z;
+
+                if (Math.Abs(clipPoint.W) < 1e-6)
+                    continue;
+
+                float depth = perspective
+                    ? (float)(clipPoint.Z / clipPoint.W)
+                    : (float)clipPoint.Z;
 
                 minDepth = Math.Min(minDepth, depth);
                 maxDepth = Math.Max(maxDepth, depth);
@@ -244,9 +251,9 @@ public sealed class WireframeRenderer
                         perspective,
                         frame);
                 })
-                .ToList();
+                .ToList(); 
 
-            zBuffer.RasterizePolygon(vertices, viewport, perspective);
+            zBuffer.RasterizePolygon(vertices, viewport);
         }
     }
 
@@ -283,16 +290,19 @@ public sealed class WireframeRenderer
         var frame = perspective
             ? ScreenFrame.Empty
             : GetAxonometricFrame(items, viewport, view * projection);
+        if (!perspective)
+            frame = frame with { Scale = frame.Scale * Camera.OrthographicZoom };
 
         if (zBufferEnabled)
         {
-            var depthRange = perspective
-                ? (Min: 0f, Max: 1f)
-                : CalculateDepthRange(items, view, projection);
+            var depthRange = CalculateDepthRange(
+                items,
+                view,
+                projection,
+                perspective);
 
             zBuffer.Initialize(
                 viewport,
-                perspective,
                 depthRange.Min,
                 depthRange.Max);
         }
