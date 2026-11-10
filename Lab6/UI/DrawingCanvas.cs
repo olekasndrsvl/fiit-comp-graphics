@@ -18,7 +18,7 @@ public sealed class DrawingCanvas : Panel
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public Camera Camera => renderer.Camera;
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public bool ZBufferEnabled { get; set; };
+    public bool ZBufferEnabled { get; set; }
 
     public DrawingCanvas()
     {
