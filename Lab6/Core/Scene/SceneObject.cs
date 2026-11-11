@@ -4,8 +4,10 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace Lab6.Core.Scene;
 
-public sealed class SceneObject(Polyhedron geometry)
+public sealed class SceneObject(string name, Polyhedron geometry, string? sourcePath = null)
 {
+    public string Name { get; set; } = name;
+    public string? SourcePath { get; set; } = sourcePath;
     public Polyhedron Geometry { get; } = geometry;
     public Matrix<double> Model { get; private set; } = TransformMatrix.Identity;
 
@@ -32,4 +34,6 @@ public sealed class SceneObject(Polyhedron geometry)
     public void Apply(Matrix<double> operation) => Model = Model * operation;
 
     public void Reset() => Model = TransformMatrix.Identity;
+
+    public override string ToString() => Name;
 }

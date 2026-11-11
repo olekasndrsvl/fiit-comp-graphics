@@ -9,6 +9,7 @@ partial class Form1
     private System.ComponentModel.IContainer? components;
     private DrawingCanvas canvas = null!;
     private ComboBox projectionPicker = null!;
+    private CheckBox backfaceCulling = null!, zBuffer = null!;
     private ComboBox rotationAxis = null!, reflectionPlane = null!;
     private ComboBox revolutionAxis = null!, surfaceFunction = null!;
     private NumericUpDown angle = null!, lineAngle = null!;
@@ -18,8 +19,8 @@ partial class Form1
     private NumericUpDown surfaceXMin = null!, surfaceXMax = null!, surfaceYMin = null!, surfaceYMax = null!;
     private NumericUpDown surfaceXDivisions = null!, surfaceYDivisions = null!;
     private CheckBox rotationCenter = null!, scaleCenter = null!;
-    private Label status = null!, modelInfo = null!, centerInfo = null!, objFileInfo = null!;
-    private ListBox revolutionPoints = null!;
+    private Label status = null!, modelInfo = null!, centerInfo = null!;
+    private ListBox sceneObjects = null!, revolutionPoints = null!;
     private ComboBox revolutionTemplate = null!;
     private TabControl toolTabs = null!;
     private readonly List<Panel> operationPanels = [];
@@ -27,6 +28,7 @@ partial class Form1
     private readonly List<RadioButton> modelButtons = [];
     private readonly List<Panel> modelSourcePanels = [];
     private readonly List<RadioButton> modelSourceButtons = [];
+    private CheckBox autoRotate = null!;
 
     protected override void Dispose(bool disposing)
     {
@@ -44,6 +46,7 @@ partial class Form1
         ClientSize = new Size(1220, 760);
         MinimumSize = new Size(980, 650);
         StartPosition = FormStartPosition.CenterScreen;
+        WindowState = FormWindowState.Maximized;
         Text = "lab6";
         BackColor = EditorTheme.Background;
         ForeColor = EditorTheme.Text;
@@ -55,12 +58,11 @@ partial class Form1
     {
         var workspace = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2,
+            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 1,
             Padding = new Padding(6), Margin = Padding.Empty
         };
         workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         workspace.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        workspace.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         var split = new SplitContainer
         {
             Dock = DockStyle.Fill, Size = new Size(1200, 710), SplitterDistance = 850,
@@ -68,8 +70,96 @@ partial class Form1
             SplitterWidth = 5, BackColor = EditorTheme.Border, Margin = Padding.Empty
         };
         split.Panel1.BackColor = split.Panel2.BackColor = EditorTheme.Background;
+        var viewport = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        viewport.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        viewport.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        viewport.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+
         canvas = new DrawingCanvas { Dock = DockStyle.Fill, Margin = Padding.Empty };
-        split.Panel1.Controls.Add(canvas);
+        viewport.Controls.Add(canvas, 0, 0);
+
+        var projectionBar = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 6,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            Padding = new Padding(8, 4, 8, 3),
+            BackColor = EditorTheme.Background
+        };
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); 
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120)); 
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150)); 
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100)); 
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82)); 
+        projectionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210)); 
+        projectionBar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        status = new Label
+        {
+            Dock = DockStyle.Fill,
+            AutoEllipsis = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = EditorTheme.Muted,
+            Text = "Готово",
+            Padding = new Padding(4, 0, 0, 0),
+            Margin = Padding.Empty
+        };
+        projectionBar.Controls.Add(status, 0, 0);
+
+        autoRotate = new CheckBox
+        {
+            Text = "Автоповорот",
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            Margin = Padding.Empty
+        };
+        autoRotate.CheckedChanged += AutoRotateChanged;
+        projectionBar.Controls.Add(autoRotate, 1, 0);
+
+        backfaceCulling = new CheckBox
+        {
+            Text = "Отсечение граней",
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            Margin = Padding.Empty
+        };
+        backfaceCulling.CheckedChanged += BackfaceCullingChanged;
+        projectionBar.Controls.Add(backfaceCulling, 2, 0);
+
+        zBuffer = new CheckBox
+        {
+            Text = "Z-буфер",
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            Margin = Padding.Empty
+        };
+        zBuffer.CheckedChanged += ZBufferChanged;
+        projectionBar.Controls.Add(zBuffer, 3, 0);
+
+        projectionBar.Controls.Add(new Label
+        {
+            Text = "Проекция",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleRight,
+            ForeColor = EditorTheme.Muted,
+            Margin = new Padding(0, 0, 8, 0)
+        }, 4, 0);
+
+        projectionPicker = Picker("Аксонометрическая", "Перспективная");
+        projectionPicker.Dock = DockStyle.Fill;
+        projectionPicker.Margin = Padding.Empty;
+        projectionBar.Controls.Add(projectionPicker, 5, 0);
+
+        viewport.Controls.Add(projectionBar, 0, 1);
+        split.Panel1.Controls.Add(viewport);
 
         var inspector = new TableLayoutPanel
         {
@@ -85,15 +175,14 @@ partial class Form1
             SizeMode = TabSizeMode.Fixed, ItemSize = new Size(102, 42), Margin = Padding.Empty
         };
         var icons = new ImageList(components!) { ImageSize = new Size(24, 24), ColorDepth = ColorDepth.Depth32Bit };
-        var tabIcons = new[] { "Cube", "Move", "Projection" }.Select(EditorTheme.LoadIcon).ToArray();
+        var tabIcons = new[] { "Cube", "Move" }.Select(EditorTheme.LoadIcon).ToArray();
         foreach (var icon in tabIcons) icons.Images.Add(icon);
         icons.Disposed += (_, _) => { foreach (var icon in tabIcons) icon.Dispose(); };
         toolTabs.ImageList = icons;
         toolTabs.TabPages.Add(CreateModelPage());
         toolTabs.TabPages.Add(CreateTransformPage());
-        toolTabs.TabPages.Add(CreateViewPage());
         for (var i = 0; i < toolTabs.TabCount; i++) toolTabs.TabPages[i].ImageIndex = i;
-        toolTabs.SelectedIndex = 1;
+        toolTabs.SelectedIndex = 0;
         toolTabs.SelectedIndexChanged += (_, _) => toolTabs.Invalidate();
         inspector.Controls.Add(toolTabs, 0, 0);
 
@@ -112,13 +201,7 @@ partial class Form1
         footer.Controls.Add(reset, 0, 2);
         inspector.Controls.Add(footer, 0, 1);
         split.Panel2.Controls.Add(inspector);
-        status = new Label
-        {
-            Dock = DockStyle.Fill, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = EditorTheme.Muted, Text = "Готово", Padding = new Padding(8, 0, 0, 0)
-        };
         workspace.Controls.Add(split, 0, 0);
-        workspace.Controls.Add(status, 0, 1);
         Controls.Add(workspace);
         projectionPicker.SelectedIndexChanged += (_, _) => UpdateScene("Проекция изменена");
     }
@@ -128,11 +211,14 @@ partial class Form1
         var page = new TabPage("Модели") { BackColor = EditorTheme.Background, Padding = new Padding(8) };
         var layout = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty
+            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = Padding.Empty
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        layout.Controls.Add(CreateScenePanel(), 0, 0);
 
         var palette = Palette();
         palette.Dock = DockStyle.Fill;
@@ -140,7 +226,7 @@ partial class Form1
         var sources = new[]
         {
             (Icon: "Cube", Text: "Тела", Panel: CreateSolidModelsPanel()),
-            (Icon: "Rotate", Text: "Вращение", Panel: CreateRevolutionPanel()),
+            (Icon: "Rotate", Text: "Фигуры вращения", Panel: CreateRevolutionPanel()),
             (Icon: "Projection", Text: "Функция", Panel: CreateFunctionSurfacePanel())
         };
         for (var i = 0; i < sources.Length; i++)
@@ -154,8 +240,8 @@ partial class Form1
             deck.Controls.Add(sources[i].Panel);
         }
         SelectModelSource(0);
-        layout.Controls.Add(palette, 0, 0);
-        layout.Controls.Add(deck, 0, 1);
+        layout.Controls.Add(palette, 0, 1);
+        layout.Controls.Add(deck, 0, 2);
         page.Controls.Add(layout);
         return page;
     }
@@ -186,14 +272,50 @@ partial class Form1
         solids.SizeChanged += (_, _) => FitModelPalette();
         FitModelPalette();
         panel.Controls.Add(solids);
-        panel.Controls.Add(ActionButton("Создать заново", () => SelectModel(selectedModel)));
+        panel.Controls.Add(ActionButton("Добавить ещё раз", () => SelectModel(selectedModel)));
+        return panel;
+    }
 
-        panel.Controls.Add(Title("Wavefront OBJ"));
-        panel.Controls.Add(ActionRow(
-            ("Загрузить", LoadObjModel),
-            ("Сохранить", SaveObjModel)));
-        objFileInfo = Note("OBJ-файл не выбран");
-        panel.Controls.Add(objFileInfo);
+    private Control CreateScenePanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+        panel.Controls.Add(new Label
+        {
+            Text = "Объекты сцены",
+            Dock = DockStyle.Fill,
+            Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+            ForeColor = EditorTheme.Text,
+            TextAlign = ContentAlignment.MiddleLeft
+        }, 0, 0);
+
+        sceneObjects = new ListBox
+        {
+            Dock = DockStyle.Fill,
+            IntegralHeight = false,
+            BackColor = EditorTheme.Input,
+            ForeColor = EditorTheme.Text,
+            Margin = new Padding(0, 0, 0, 4)
+        };
+        sceneObjects.SelectedIndexChanged += (_, _) => SelectSceneObject();
+        panel.Controls.Add(sceneObjects, 0, 1);
+
+        var actions = ActionRow(
+            ("Загрузить OBJ", LoadObjModel),
+            ("Сохранить", SaveObjModel),
+            ("Удалить", RemoveSelectedObject));
+        actions.Dock = DockStyle.Fill;
+        panel.Controls.Add(actions, 0, 2);
         return panel;
     }
 
@@ -330,21 +452,6 @@ partial class Form1
         layout.Controls.Add(palette, 0, 0);
         layout.Controls.Add(deck, 0, 1);
         page.Controls.Add(layout);
-        return page;
-    }
-
-    private TabPage CreateViewPage()
-    {
-        var page = Page("Проекция", out var panel);
-        panel.Controls.Add(Title("Проецирование"));
-        projectionPicker = Picker("Аксонометрическая", "Перспективная");
-        panel.Controls.Add(Field("Тип проекции", projectionPicker));
-        var legend = Palette();
-        legend.Height = 26;
-        legend.AutoSize = false;
-        foreach (var (text, color) in new[] { ("X", Color.IndianRed), ("Y", Color.ForestGreen), ("Z", Color.RoyalBlue) })
-            legend.Controls.Add(new Label { Text = text, ForeColor = color, Width = 60 });
-        panel.Controls.Add(legend);
         return page;
     }
 

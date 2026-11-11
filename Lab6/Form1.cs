@@ -9,16 +9,17 @@ namespace Lab6;
 
 public partial class Form1 : Form
 {
-    private SceneObject? sceneObject;
+    private readonly Scene scene = new();
     private int selectedModel = 1;
     private readonly FigureRevolution figureRevolution = new();
-    private string? currentObjPath;
 
     public Form1()
     {
         InitializeComponent();
+        canvas.Scene = scene;
         canvas.RenderPending += m => status.Text = m;
         canvas.ShowAxes = true;
+        canvas.IsRotating = autoRotate.Checked;
         Shown += (_, _) => UpdateScene("Выберите модель");
     }
 
@@ -27,11 +28,9 @@ public partial class Form1 : Form
         selectedModel = index;
         for (var i = 0; i < modelButtons.Count; i++)
             MarkSelected(modelButtons[i], i == selectedModel);
-        sceneObject = new SceneObject(PlatonicSolids.Create(index));
-        canvas.SceneObject = sceneObject;
-        currentObjPath = null;
-        objFileInfo.Text = "Встроенная модель";
-        UpdateScene("Модель создана");
+        var names = new[] { "Тетраэдр", "Гексаэдр", "Октаэдр", "Икосаэдр", "Додекаэдр" };
+        AddObject(names[index], PlatonicSolids.Create(index));
+        UpdateScene($"Добавлен объект: {names[index]}");
     }
 
     private void LoadObjModel()
@@ -42,20 +41,21 @@ public partial class Form1 : Form
             Filter = "Wavefront OBJ (*.obj)|*.obj|Все файлы (*.*)|*.*",
             FilterIndex = 1,
             CheckFileExists = true,
-            Multiselect = false
+            Multiselect = true
         };
 
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return;
 
-        var geometry = ObjSerializer.Load(dialog.FileName);
-        sceneObject = new SceneObject(geometry);
-        canvas.SceneObject = sceneObject;
-        currentObjPath = dialog.FileName;
-        objFileInfo.Text = Path.GetFileName(dialog.FileName);
+        foreach (var filePath in dialog.FileNames)
+        {
+            var geometry = ObjSerializer.Load(filePath);
+            AddObject(Path.GetFileNameWithoutExtension(filePath), geometry, filePath);
+        }
+
         foreach (var button in modelButtons)
             MarkSelected(button, false);
-        UpdateScene($"OBJ загружен: {Path.GetFileName(dialog.FileName)}");
+        UpdateScene($"Добавлено OBJ-файлов: {dialog.FileNames.Length}");
     }
 
     private void SaveObjModel()
@@ -69,17 +69,16 @@ public partial class Form1 : Form
             AddExtension = true,
             DefaultExt = "obj",
             OverwritePrompt = true,
-            FileName = currentObjPath is null ? "model.obj" : Path.GetFileName(currentObjPath)
+            FileName = item.SourcePath is null ? $"{item.Name}.obj" : Path.GetFileName(item.SourcePath)
         };
-        if (currentObjPath is not null)
-            dialog.InitialDirectory = Path.GetDirectoryName(currentObjPath);
+        if (item.SourcePath is not null)
+            dialog.InitialDirectory = Path.GetDirectoryName(item.SourcePath);
 
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return;
 
         ObjSerializer.Save(dialog.FileName, item.Geometry, item.Model);
-        currentObjPath = dialog.FileName;
-        objFileInfo.Text = Path.GetFileName(dialog.FileName);
+        item.SourcePath = dialog.FileName;
         UpdateScene($"OBJ сохранён: {Path.GetFileName(dialog.FileName)}");
     }
 
@@ -122,8 +121,7 @@ public partial class Form1 : Form
 
         var geometry = figureRevolution.Generate(axisIndex, divisions);
 
-        sceneObject = new SceneObject(geometry);
-        canvas.SceneObject = sceneObject;
+        AddObject("Фигура вращения", geometry);
 
         foreach (var button in modelButtons)
             MarkSelected(button, false);
@@ -280,23 +278,57 @@ public partial class Form1 : Form
             xDivisions,
             yDivisions);
 
-        sceneObject = new SceneObject(geometry);
-        canvas.SceneObject = sceneObject;
-
-        currentObjPath = null;
+        AddObject("График функции", geometry);
 
         foreach (var button in modelButtons)
             MarkSelected(button, false);
 
-        objFileInfo.Text = "Поверхность функции";
-
         UpdateScene("График функции построен");
+    }
+
+    private SceneObject AddObject(
+        string name,
+        Polyhedron geometry,
+        string? sourcePath = null)
+    {
+        var item = scene.Add(name, geometry, sourcePath);
+        RefreshSceneObjectList();
+        return item;
+    }
+
+    private void RefreshSceneObjectList()
+    {
+        sceneObjects.BeginUpdate();
+        sceneObjects.Items.Clear();
+        foreach (var item in scene.Objects)
+            sceneObjects.Items.Add(item);
+        sceneObjects.SelectedItem = scene.SelectedObject;
+        sceneObjects.EndUpdate();
+    }
+
+    private void SelectSceneObject()
+    {
+        if (sceneObjects.SelectedItem is not SceneObject item)
+            return;
+
+        scene.Select(item);
+        UpdateScene($"Выбран объект: {item.Name}");
+    }
+
+    private void RemoveSelectedObject()
+    {
+        var removed = scene.RemoveSelected();
+        if (removed is null)
+            throw new InvalidOperationException("Сначала выберите объект сцены.");
+
+        RefreshSceneObjectList();
+        UpdateScene($"Удалён объект: {removed.Name}");
     }
 
 
 
     private SceneObject SelectedObject() =>
-        sceneObject ?? throw new InvalidOperationException("Сначала создайте модель.");
+        scene.SelectedObject ?? throw new InvalidOperationException("Сначала выберите объект сцены.");
 
     private void TranslateModel()
     {
@@ -351,8 +383,36 @@ public partial class Form1 : Form
 
     private void ResetModel()
     {
-        sceneObject?.Reset();
-        UpdateScene(sceneObject is null ? "Модель не создана" : "Преобразования сброшены");
+        var item = scene.SelectedObject;
+        item?.Reset();
+        UpdateScene(item is null ? "Объект не выбран" : "Преобразования сброшены");
+    }
+
+    private void BackfaceCullingChanged(object? sender, EventArgs e)
+    {
+        if (canvas is null) return;
+
+        // Передаем состояние чекбокса в канву
+        canvas.BackfaceCulling = backfaceCulling.Checked;
+
+        UpdateScene(backfaceCulling.Checked
+            ? "Отсечение нелицевых граней включено"
+            : "Отсечение нелицевых граней выключено");
+    }
+
+    private void AutoRotateChanged(object? sender, EventArgs e)
+    {
+        if (canvas is null) return;
+        canvas.IsRotating = autoRotate.Checked;
+        UpdateScene(autoRotate.Checked
+            ? "Автоматическое вращение включено"
+            : "Автоматическое вращение остановлено");
+    }
+
+    private void ZBufferChanged(object? sender, EventArgs e)
+    {
+        canvas.ZBufferEnabled = zBuffer.Checked;
+        canvas.RefreshFrame();
     }
 
     private void RunAction(Action action)
@@ -374,14 +434,15 @@ public partial class Form1 : Form
     {
         canvas.Perspective = projectionPicker.SelectedIndex == 1;
         canvas.RefreshFrame();
-        modelInfo.Text = sceneObject is null ? "Модель не создана" :
-            $"Вершин: {sceneObject.Geometry.Positions.Count} · Граней: {sceneObject.Geometry.Faces.Count}";
+        var selected = scene.SelectedObject;
+        modelInfo.Text = selected is null ? $"Объектов в сцене: {scene.Objects.Count}" :
+            $"Вершин: {selected.Geometry.Positions.Count} · Граней: {selected.Geometry.Faces.Count}";
         centerInfo.Text = "Центр: —";
-        if (sceneObject is not null)
+        if (selected is not null)
         {
             try
             {
-                var center = sceneObject.Center;
+                var center = selected.Center;
                 centerInfo.Text = $"Центр: ({center.X:0.##}; {center.Y:0.##}; {center.Z:0.##})";
             }
             catch (NotImplementedException)

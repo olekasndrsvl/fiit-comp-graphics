@@ -7,10 +7,20 @@ public sealed class Camera
 {
     public const double FieldOfView = Math.PI / 3;
     private const double FramePadding = 1.1;
+    private const double OrbitRadiansPerPixel = Math.PI / 360;
+    private const double ZoomFactorPerWheelStep = 0.9;
+    private const double MaximumElevation = Math.PI / 2 - Math.PI / 180;
+    private const double MinimumDistance = 0.01;
+
+    private double azimuth;
+    private double elevation;
+    private double distance = 1;
+    private double fittedDistance = 1;
 
     public Point3D Position { get; private set; } = new(0, 0, -1);
     public Point3D Target { get; private set; } = new(0, 0, 0);
     public Point3D Up { get; private set; } = new(0, 1, 0);
+    public double OrthographicZoom => fittedDistance / distance;
 
     public void FitTo(IReadOnlyList<Point3D> positions, double aspect)
     {
@@ -41,12 +51,64 @@ public sealed class Camera
         var distanceByHeight = halfHeight / tanHalfFov;
         var distance = (Math.Max(distanceByWidth, distanceByHeight) + halfDepth) * FramePadding;
 
-        Position = new Point3D(Target.X, Target.Y, Target.Z - distance);
+        this.distance = Math.Max(distance, MinimumDistance);
+        fittedDistance = this.distance;
+        azimuth = 0;
+        elevation = 0;
+        UpdatePosition();
     }
 
-    public void MoveTo(Point3D position) => Position = position;
+    public void Orbit(int horizontalPixels, int verticalPixels)
+    {
+        azimuth += horizontalPixels * OrbitRadiansPerPixel;
+        elevation = Math.Clamp(
+            elevation + verticalPixels * OrbitRadiansPerPixel,
+            -MaximumElevation,
+            MaximumElevation);
+        UpdatePosition();
+    }
 
-    public void LookAt(Point3D target) => Target = target;
+    public void Zoom(double wheelSteps)
+    {
+        distance = Math.Max(
+            MinimumDistance,
+            distance * Math.Pow(ZoomFactorPerWheelStep, wheelSteps));
+        UpdatePosition();
+    }
+
+    public void MoveTo(Point3D position)
+    {
+        Position = position;
+        UpdateOrbitParameters();
+    }
+
+    public void LookAt(Point3D target)
+    {
+        Target = target;
+        UpdateOrbitParameters();
+    }
+
+    private void UpdatePosition()
+    {
+        var horizontalDistance = distance * Math.Cos(elevation);
+        Position = new Point3D(
+            Target.X + horizontalDistance * Math.Sin(azimuth),
+            Target.Y + distance * Math.Sin(elevation),
+            Target.Z - horizontalDistance * Math.Cos(azimuth));
+    }
+
+    private void UpdateOrbitParameters()
+    {
+        var offsetX = Position.X - Target.X;
+        var offsetY = Position.Y - Target.Y;
+        var offsetZ = Position.Z - Target.Z;
+        distance = Math.Max(
+            Math.Sqrt(offsetX * offsetX + offsetY * offsetY + offsetZ * offsetZ),
+            MinimumDistance);
+        fittedDistance = distance;
+        elevation = Math.Asin(Math.Clamp(offsetY / distance, -1, 1));
+        azimuth = Math.Atan2(offsetX, -offsetZ);
+    }
 
     public Matrix<double> GetViewMatrix()
     {
