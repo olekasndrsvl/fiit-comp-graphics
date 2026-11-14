@@ -9,17 +9,20 @@ partial class Form1
     private System.ComponentModel.IContainer? components;
     private DrawingCanvas canvas = null!;
     private ComboBox projectionPicker = null!;
+    private ComboBox shadingMode = null!;
     private CheckBox backfaceCulling = null!, zBuffer = null!;
     private ComboBox rotationAxis = null!, reflectionPlane = null!;
     private ComboBox revolutionAxis = null!, surfaceFunction = null!;
     private NumericUpDown angle = null!, lineAngle = null!;
     private NumericUpDown[] translation = null!, scaleInputs = null!, lineStart = null!, lineEnd = null!;
     private NumericUpDown[] revolutionPoint = null!;
+    private NumericUpDown[] lightPosition = null!;
     private NumericUpDown revolutionDivisions = null!;
     private NumericUpDown surfaceXMin = null!, surfaceXMax = null!, surfaceYMin = null!, surfaceYMax = null!;
     private NumericUpDown surfaceXDivisions = null!, surfaceYDivisions = null!;
     private CheckBox rotationCenter = null!, scaleCenter = null!;
     private Label status = null!, modelInfo = null!, centerInfo = null!;
+    private Label lightInfo = null!, textureFileInfo = null!;
     private ListBox sceneObjects = null!, revolutionPoints = null!;
     private ComboBox revolutionTemplate = null!;
     private TabControl toolTabs = null!;
@@ -175,12 +178,13 @@ partial class Form1
             SizeMode = TabSizeMode.Fixed, ItemSize = new Size(102, 42), Margin = Padding.Empty
         };
         var icons = new ImageList(components!) { ImageSize = new Size(24, 24), ColorDepth = ColorDepth.Depth32Bit };
-        var tabIcons = new[] { "Cube", "Move" }.Select(EditorTheme.LoadIcon).ToArray();
+        var tabIcons = new[] { "Cube", "Move", "Light" }.Select(EditorTheme.LoadIcon).ToArray();
         foreach (var icon in tabIcons) icons.Images.Add(icon);
         icons.Disposed += (_, _) => { foreach (var icon in tabIcons) icon.Dispose(); };
         toolTabs.ImageList = icons;
         toolTabs.TabPages.Add(CreateModelPage());
         toolTabs.TabPages.Add(CreateTransformPage());
+        toolTabs.TabPages.Add(CreateLightingPage());
         for (var i = 0; i < toolTabs.TabCount; i++) toolTabs.TabPages[i].ImageIndex = i;
         toolTabs.SelectedIndex = 0;
         toolTabs.SelectedIndexChanged += (_, _) => toolTabs.Invalidate();
@@ -452,6 +456,33 @@ partial class Form1
         layout.Controls.Add(palette, 0, 0);
         layout.Controls.Add(deck, 0, 1);
         page.Controls.Add(layout);
+        return page;
+    }
+
+    private TabPage CreateLightingPage()
+    {
+        var page = Page("Освещение", out var panel);
+
+        panel.Controls.Add(Title("Источник света"));
+        lightPosition = Triple(5, 5, -5, -10000, 10000);
+        panel.Controls.Add(TripleField("Положение в мировой системе", lightPosition));
+        panel.Controls.Add(ActionButton("Добавить источник света", AddLightSource));
+        lightInfo = Note("Источник света не добавлен");
+        panel.Controls.Add(lightInfo);
+
+        panel.Controls.Add(Title("Режим шейдинга"));
+        shadingMode = Picker(
+            "Без шейдинга",
+            "Гуро — модель Ламберта",
+            "Фонг — туншейдинг");
+        shadingMode.SelectedIndexChanged += ShadingModeChanged;
+        panel.Controls.Add(Field("Режим", shadingMode));
+
+        panel.Controls.Add(Title("Текстура"));
+        panel.Controls.Add(ActionButton("Загрузить текстуру", LoadTexture));
+        textureFileInfo = Note("Файл текстуры не выбран");
+        panel.Controls.Add(textureFileInfo);
+
         return page;
     }
 

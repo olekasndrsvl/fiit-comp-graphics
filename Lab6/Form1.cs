@@ -12,6 +12,7 @@ public partial class Form1 : Form
     private readonly Scene scene = new();
     private int selectedModel = 1;
     private readonly FigureRevolution figureRevolution = new();
+    private string? texturePath;
 
     public Form1()
     {
@@ -386,6 +387,41 @@ public partial class Form1 : Form
         var item = scene.SelectedObject;
         item?.Reset();
         UpdateScene(item is null ? "Объект не выбран" : "Преобразования сброшены");
+    }
+
+    private void AddLightSource()
+    {
+        var position = ReadPoint(lightPosition);
+
+        // TODO: добавить источник света в сцену.
+        lightInfo.Text = $"Источник: ({position.X:0.##}; {position.Y:0.##}; {position.Z:0.##})";
+        status.Text = "Положение источника света задано";
+    }
+
+    private void ShadingModeChanged(object? sender, EventArgs e)
+    {
+        // TODO: передать выбранный режим шейдинга в рендерер.
+        status.Text = $"Режим шейдинга: {shadingMode.Text}";
+    }
+
+    private void LoadTexture()
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Загрузить текстуру",
+            Filter = "Изображения (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp|Все файлы (*.*)|*.*",
+            FilterIndex = 1,
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        texturePath = dialog.FileName;
+        textureFileInfo.Text = Path.GetFileName(texturePath);
+
+        // TODO: определить область применения текстуры и передать её в рендерер.
+        status.Text = $"Выбрана текстура: {textureFileInfo.Text}";
     }
 
     private void BackfaceCullingChanged(object? sender, EventArgs e)
