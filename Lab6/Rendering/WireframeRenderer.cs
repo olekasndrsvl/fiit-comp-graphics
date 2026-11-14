@@ -15,7 +15,7 @@ public sealed class WireframeRenderer
 
     private SceneObject? framedItem;
 
-    private readonly ZBuffer zBuffer = new();
+    private readonly SoftwareRasterizer rasterizer = new();
     private double viewYaw;
     private double viewPitch;
     private double objectRotationAngle;
@@ -332,7 +332,7 @@ public sealed class WireframeRenderer
                 })
                 .ToList(); 
 
-            zBuffer.RasterizePolygon(vertices, viewport);
+            rasterizer.RasterizePolygon(vertices);
         }
     }
 
@@ -375,7 +375,7 @@ public sealed class WireframeRenderer
                 projection,
                 perspective);
 
-            zBuffer.Initialize(
+            rasterizer.Initialize(
                 viewport,
                 depthRange.Min,
                 depthRange.Max);
@@ -411,7 +411,7 @@ public sealed class WireframeRenderer
         }
 
         if (zBufferEnabled)
-            zBuffer.Draw(graphics, viewport);
+            rasterizer.Draw(graphics);
 
         if (showAxes)
             DrawAxes(graphics, viewport, view, projection, perspective);
