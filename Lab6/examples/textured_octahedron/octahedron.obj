@@ -1,0 +1,23 @@
+# Textured regular octahedron
+# Texture: octahedron_texture.png
+o TexturedOctahedron
+
+v  0  1  0
+v  0 -1  0
+v  1  0  0
+v  0  0 -1
+v -1  0  0
+v  0  0  1
+
+vt 0.0 0.0
+vt 1.0 0.0
+vt 0.5 1.0
+
+f 1/1 6/2 3/3
+f 1/1 3/2 4/3
+f 1/1 4/2 5/3
+f 1/1 5/2 6/3
+f 2/1 3/2 6/3
+f 2/1 4/2 3/3
+f 2/1 5/2 4/3
+f 2/1 6/2 5/3
