@@ -1,25 +1,34 @@
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using Lab6.Core.Materials;
 
 namespace Lab6.Rendering;
 
-internal readonly record struct ScreenPoint(float X, float Y, float Z);
+internal readonly record struct RasterVertex(
+    float X,
+    float Y,
+    float Z,
+    double InverseW,
+    double UOverW,
+    double VOverW,
+    bool HasTextureCoordinates);
 
 public sealed class SoftwareRasterizer
 {
+    private const float MinimumTriangleArea = 1e-6f;
+    private const double MinimumInterpolatedInverseW = 1e-12;
+
     private readonly ZBuffer depthBuffer = new();
     private int[] colorBuffer = [];
     private int width;
     private int height;
-    private float minDepth;
-    private float maxDepth;
+    private bool depthTestEnabled;
 
-    public void Initialize(Size viewport, float minDepth, float maxDepth)
+    public void Initialize(Size viewport, bool depthTestEnabled)
     {
         width = viewport.Width;
         height = viewport.Height;
-        this.minDepth = minDepth;
-        this.maxDepth = maxDepth;
+        this.depthTestEnabled = depthTestEnabled;
 
         var bufferSize = width * height;
         if (colorBuffer.Length != bufferSize)
@@ -29,22 +38,30 @@ public sealed class SoftwareRasterizer
         depthBuffer.Initialize(viewport);
     }
 
-    internal void RasterizePolygon(IReadOnlyList<ScreenPoint> vertices)
+    internal void RasterizePolygon(
+        IReadOnlyList<RasterVertex> vertices,
+        Material material,
+        IFragmentShader shader)
     {
         if (vertices.Count < 3)
             return;
 
         for (var i = 1; i < vertices.Count - 1; i++)
-            RasterizeTriangle(vertices[0], vertices[i], vertices[i + 1]);
+            RasterizeTriangle(vertices[0], vertices[i], vertices[i + 1], material, shader);
     }
 
-    private void RasterizeTriangle(ScreenPoint a, ScreenPoint b, ScreenPoint c)
+    private void RasterizeTriangle(
+        RasterVertex a,
+        RasterVertex b,
+        RasterVertex c,
+        Material material,
+        IFragmentShader shader)
     {
         var area =
             (b.X - a.X) * (c.Y - a.Y) -
             (b.Y - a.Y) * (c.X - a.X);
 
-        if (Math.Abs(area) < 1e-6f)
+        if (Math.Abs(area) < MinimumTriangleArea)
             return;
 
         var minX = Math.Max(0, (int)Math.Floor(Math.Min(a.X, Math.Min(b.X, c.X))));
@@ -59,6 +76,8 @@ public sealed class SoftwareRasterizer
         var w1StepY = (c.X - b.X) * inverseArea;
         var w2StepY = (a.X - c.X) * inverseArea;
         var w3StepY = (b.X - a.X) * inverseArea;
+        var hasTextureCoordinates =
+            a.HasTextureCoordinates && b.HasTextureCoordinates && c.HasTextureCoordinates;
 
         for (var y = minY; y <= maxY; y++)
         {
@@ -75,11 +94,8 @@ public sealed class SoftwareRasterizer
             for (var x = minX; x <= maxX; x++)
             {
                 if (w1 >= 0 && w2 >= 0 && w3 >= 0)
-                {
-                    var depth = w1 * a.Z + w2 * b.Z + w3 * c.Z;
-                    if (depthBuffer.TestAndSet(x, y, depth))
-                        colorBuffer[y * width + x] = GetDepthColor(depth);
-                }
+                    DrawFragment(x, y, w1, w2, w3, a, b, c,
+                        hasTextureCoordinates, material, shader);
 
                 w1 += w1StepX;
                 w2 += w2StepX;
@@ -88,15 +104,38 @@ public sealed class SoftwareRasterizer
         }
     }
 
-    private int GetDepthColor(float depth)
+    private void DrawFragment(
+        int x,
+        int y,
+        float w1,
+        float w2,
+        float w3,
+        RasterVertex a,
+        RasterVertex b,
+        RasterVertex c,
+        bool hasTextureCoordinates,
+        Material material,
+        IFragmentShader shader)
     {
-        var range = maxDepth - minDepth;
-        var normalizedDepth = range > 1e-6f
-            ? (depth - minDepth) / range
-            : 0.5f;
-        var intensity = 1f - Math.Clamp(normalizedDepth, 0f, 1f);
-        var channel = (int)(25 + intensity * 230);
-        return Color.FromArgb(channel, channel, channel).ToArgb();
+        var depth = w1 * a.Z + w2 * b.Z + w3 * c.Z;
+        if (depthTestEnabled && !depthBuffer.TestAndSet(x, y, depth))
+            return;
+
+        double u = 0;
+        double v = 0;
+
+        if (hasTextureCoordinates)
+        {
+            var inverseW = w1 * a.InverseW + w2 * b.InverseW + w3 * c.InverseW;
+            if (Math.Abs(inverseW) < MinimumInterpolatedInverseW)
+                return;
+
+            u = (w1 * a.UOverW + w2 * b.UOverW + w3 * c.UOverW) / inverseW;
+            v = (w1 * a.VOverW + w2 * b.VOverW + w3 * c.VOverW) / inverseW;
+        }
+
+        var fragment = new Fragment(depth, u, v, hasTextureCoordinates);
+        colorBuffer[y * width + x] = shader.Shade(fragment, material);
     }
 
     public void Draw(Graphics graphics)

@@ -1,4 +1,5 @@
 using Lab6.Core.Geometry;
+using Lab6.Core.Materials;
 using Lab6.Core.Mathematics;
 using Lab6.Core.Scene;
 using Lab6.IO;
@@ -406,6 +407,11 @@ public partial class Form1 : Form
 
     private void LoadTexture()
     {
+        var item = SelectedObject();
+        if (item.Geometry.TextureCoordinates.Count == 0)
+            throw new InvalidOperationException(
+                "У выбранной модели нет текстурных координат vt.");
+
         using var dialog = new OpenFileDialog
         {
             Title = "Загрузить текстуру",
@@ -419,9 +425,9 @@ public partial class Form1 : Form
 
         texturePath = dialog.FileName;
         textureFileInfo.Text = Path.GetFileName(texturePath);
+        item.Material.Texture = Texture2D.Load(texturePath);
 
-        // TODO: определить область применения текстуры и передать её в рендерер.
-        status.Text = $"Выбрана текстура: {textureFileInfo.Text}";
+        UpdateScene($"Текстура применена к объекту «{item.Name}»: {textureFileInfo.Text}");
     }
 
     private void BackfaceCullingChanged(object? sender, EventArgs e)
