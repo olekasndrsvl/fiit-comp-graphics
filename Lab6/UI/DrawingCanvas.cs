@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Lab6.Core.Geometry;
 using Lab6.Core.Scene;
 using Lab6.Rendering;
 
@@ -7,16 +8,22 @@ namespace Lab6.UI;
 public sealed class DrawingCanvas : Panel
 {
     private const double RotationSpeed = 1.5; // рад/сек
+    private const float LightHitRadius = 20f;
 
     private readonly WireframeRenderer renderer = new();
     private bool cameraOrbiting;
     private Point previousMousePosition;
+    private bool lightDragging;
+    private Point lightDragStartMouse;
+    private Point3D lightDragStartPosition = new(0, 0, 0);
     private readonly System.Windows.Forms.Timer rotationTimer;
     private readonly System.Diagnostics.Stopwatch rotationClock = System.Diagnostics.Stopwatch.StartNew();
     private double lastRotationSeconds;
     private double autoRotationAngle;
 
     public event Action<string>? RenderPending;
+
+    public event Action? LightMoved;
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public Scene? Scene { get; set; }
@@ -34,6 +41,15 @@ public sealed class DrawingCanvas : Panel
     {
         get => renderer.BackfaceCulling;
         set { renderer.BackfaceCulling = value; Invalidate(); }
+    }
+
+    private ShadingMode shadingMode;
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public ShadingMode ShadingMode
+    {
+        get => shadingMode;
+        set { shadingMode = value; Invalidate(); }
     }
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -83,6 +99,18 @@ public sealed class DrawingCanvas : Panel
         base.OnMouseDown(e);
         Focus();
 
+        if (e.Button == MouseButtons.Left && Scene is not null && 
+
+            renderer.LightScreenPosition is { } sun &&
+            Distance(sun, e.Location) <= LightHitRadius)
+        {
+            lightDragging = true;
+            lightDragStartMouse = e.Location;
+            lightDragStartPosition = Scene.Light.Position;
+            Capture = true;
+            return;
+        }
+
         if (e.Button != MouseButtons.Right || Scene is null || Scene.Objects.Count == 0)
             return;
 
@@ -94,6 +122,13 @@ public sealed class DrawingCanvas : Panel
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+
+        if (lightDragging && Scene is not null)                 
+        {
+            DragLight(e.Location);
+            return;
+        }
+
         if (!cameraOrbiting)
             return;
 
@@ -105,9 +140,40 @@ public sealed class DrawingCanvas : Panel
         RefreshFrame();
     }
 
+    private void DragLight(Point location)                        
+    {
+        var deltaX = location.X - lightDragStartMouse.X;
+        var deltaY = location.Y - lightDragStartMouse.Y;
+        var (right, up) = Camera.ScreenAxes();
+        var scale = renderer.WorldPerPixel;
+
+        Scene!.Light.Position = new Point3D(
+            lightDragStartPosition.X + (right.X * deltaX - up.X * deltaY) * scale,
+            lightDragStartPosition.Y + (right.Y * deltaX - up.Y * deltaY) * scale,
+            lightDragStartPosition.Z + (right.Z * deltaX - up.Z * deltaY) * scale);
+
+        RefreshFrame();
+        LightMoved?.Invoke();
+    }
+
+    private static double Distance(PointF a, Point b)             
+    {
+        var dx = a.X - b.X;
+        var dy = a.Y - b.Y;
+        return Math.Sqrt(dx * dx + dy * dy);
+    }
+
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+
+        if (e.Button == MouseButtons.Left && lightDragging)        
+        {
+            lightDragging = false;
+            Capture = false;
+            return;
+        }
+
         if (e.Button != MouseButtons.Right)
             return;
 
@@ -135,7 +201,16 @@ public sealed class DrawingCanvas : Panel
             return;
         try
         {
-            renderer.Render(e.Graphics, ClientSize, Scene.Objects, Scene.SelectedObject, Perspective, ShowAxes, ZBufferEnabled);
+            renderer.Render(                                      
+                e.Graphics,
+                ClientSize,
+                Scene.Objects,
+                Scene.SelectedObject,
+                Perspective,
+                ShowAxes,
+                ZBufferEnabled,
+                ShadingMode,
+                Scene.Light);
         }
         catch (NotImplementedException ex)
         {

@@ -1,4 +1,5 @@
 using Lab6.Core.Geometry;
+using Lab6.Core.Lighting;
 
 namespace Lab6.Core.Scene;
 
@@ -8,7 +9,7 @@ public sealed class Scene
 
     public IReadOnlyList<SceneObject> Objects => objects;
     public SceneObject? SelectedObject { get; private set; }
-
+    public Light Light { get; } = new();
     public SceneObject Add(string name, Polyhedron geometry, string? sourcePath = null)
     {
         var item = new SceneObject(UniqueName(name), geometry, sourcePath);

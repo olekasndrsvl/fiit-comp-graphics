@@ -4,6 +4,7 @@ using Lab6.Core.Mathematics;
 using Lab6.Core.Scene;
 using Lab6.IO;
 using Lab6.Modeling;
+using Lab6.Rendering;
 using MathNet.Numerics.LinearAlgebra;
 
 namespace Lab6;
@@ -14,6 +15,7 @@ public partial class Form1 : Form
     private int selectedModel = 1;
     private readonly FigureRevolution figureRevolution = new();
     private string? texturePath;
+    private bool syncingLightFields;                      
 
     public Form1()
     {
@@ -22,6 +24,14 @@ public partial class Form1 : Form
         canvas.RenderPending += m => status.Text = m;
         canvas.ShowAxes = true;
         canvas.IsRotating = autoRotate.Checked;
+        canvas.LightMoved += SyncLightFields;                    
+
+        foreach (var field in lightPosition)                  
+            field.ValueChanged += LightSettingsChanged;
+        lightIntensity.ValueChanged += LightSettingsChanged;      
+        lightAmbient.ValueChanged += LightSettingsChanged;       
+
+        AddLightSource();                                        
         Shown += (_, _) => UpdateScene("Выберите модель");
     }
 
@@ -89,7 +99,7 @@ public partial class Form1 : Form
         var point = ReadPoint(revolutionPoint);
 
         figureRevolution.AddPoint(point);
-        RefreshRevolutionPointList(); // обновлем список точек на экране
+        RefreshRevolutionPointList();
 
         revolutionPoints.SelectedIndex = revolutionPoints.Items.Count - 1;
 
@@ -161,6 +171,7 @@ public partial class Form1 : Form
     {
         var points = revolutionTemplate.SelectedIndex switch
         {
+
             // Сосуд
             0 => new[]
             {
@@ -175,6 +186,7 @@ public partial class Form1 : Form
             new Point3D(0.6, 3.0, 0)
         },
 
+
             // Ваза
             1 => new[]
             {
@@ -188,6 +200,7 @@ public partial class Form1 : Form
             new Point3D(0.9, 2.8, 0),
             new Point3D(1.2, 3.0, 0)
         },
+
 
             // Бокал
             2 => new[]
@@ -206,6 +219,7 @@ public partial class Form1 : Form
             new Point3D(1.15, 2.5, 0)
         },
 
+
             // Ракета
             3 => new[]
             {
@@ -221,6 +235,7 @@ public partial class Form1 : Form
             new Point3D(0.65, 0.1, 0),
             new Point3D(0.0, 0.0, 0)
         },
+
 
             // Песочные часы
             4 => new[]
@@ -327,8 +342,6 @@ public partial class Form1 : Form
         UpdateScene($"Удалён объект: {removed.Name}");
     }
 
-
-
     private SceneObject SelectedObject() =>
         scene.SelectedObject ?? throw new InvalidOperationException("Сначала выберите объект сцены.");
 
@@ -390,19 +403,100 @@ public partial class Form1 : Form
         UpdateScene(item is null ? "Объект не выбран" : "Преобразования сброшены");
     }
 
-    private void AddLightSource()
+    private void AddLightSource()                                
     {
-        var position = ReadPoint(lightPosition);
-
-        // TODO: добавить источник света в сцену.
-        lightInfo.Text = $"Источник: ({position.X:0.##}; {position.Y:0.##}; {position.Z:0.##})";
+        ApplyLightSettings();
         status.Text = "Положение источника света задано";
     }
 
-    private void ShadingModeChanged(object? sender, EventArgs e)
+    private void LightSettingsChanged(object? sender, EventArgs e)     
     {
-        // TODO: передать выбранный режим шейдинга в рендерер.
-        status.Text = $"Режим шейдинга: {shadingMode.Text}";
+        if (syncingLightFields || canvas is null)
+            return;
+
+        ApplyLightSettings();
+    }
+
+    private void ApplyLightSettings()                              
+    {
+        scene.Light.Position = ReadPoint(lightPosition);
+        scene.Light.Intensity = (double)lightIntensity.Value;
+        scene.Light.Ambient = (double)lightAmbient.Value;
+        scene.Light.Enabled = true;
+
+        lightInfo.Text = DescribeLight();
+        canvas?.RefreshFrame();
+    }
+
+    private void SyncLightFields()                               
+    {
+        var position = scene.Light.Position;
+
+        syncingLightFields = true;
+        try
+        {
+            lightPosition[0].Value = ClampToField(lightPosition[0], position.X);
+            lightPosition[1].Value = ClampToField(lightPosition[1], position.Y);
+            lightPosition[2].Value = ClampToField(lightPosition[2], position.Z);
+        }
+        finally
+        {
+            syncingLightFields = false;
+        }
+
+        lightInfo.Text = DescribeLight();
+    }
+
+    private string DescribeLight()                          
+    {
+        var position = scene.Light.Position;
+
+        return $"Источник: ({position.X:0.##}; {position.Y:0.##}; {position.Z:0.##}) · " +
+               $"яркость {scene.Light.Intensity:0.##} · фон {scene.Light.Ambient:0.##}";
+    }
+
+    private static decimal ClampToField(NumericUpDown field, double value)
+    {
+        if (!double.IsFinite(value))
+            return field.Minimum;
+
+        return (decimal)Math.Clamp(value, (double)field.Minimum, (double)field.Maximum);
+    }
+
+    private void ShadingModeChanged(object? sender, EventArgs e)     
+    {
+        if (canvas is null) return;
+
+        canvas.ShadingMode = shadingMode.SelectedIndex switch
+        {
+            1 => ShadingMode.Gouraud,
+            2 => ShadingMode.Phong,
+            _ => ShadingMode.None
+        };
+
+        UpdateScene($"Режим шейдинга: {shadingMode.Text}");
+    }
+
+    private void PickLightColor()                                
+    {
+        using var dialog = new ColorDialog { Color = scene.Light.Color, FullOpen = true };
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        scene.Light.Color = dialog.Color;
+        UpdateScene("Цвет источника света изменён");
+    }
+
+    private void PickObjectColor()                                  
+    {
+        var item = SelectedObject();
+
+        using var dialog = new ColorDialog { Color = item.Material.Color, FullOpen = true };
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        item.Material.Color = dialog.Color;
+        UpdateScene($"Цвет объекта «{item.Name}» изменён");
     }
 
     private void LoadTexture()
@@ -434,7 +528,7 @@ public partial class Form1 : Form
     {
         if (canvas is null) return;
 
-        // Передаем состояние чекбокса в канву
+
         canvas.BackfaceCulling = backfaceCulling.Checked;
 
         UpdateScene(backfaceCulling.Checked
@@ -467,7 +561,7 @@ public partial class Form1 : Form
             NotImplementedException or ArgumentException or InvalidOperationException or
             FormatException or IOException or UnauthorizedAccessException)
         {
-            // В каркасе нажатие кнопки показывает задачу, а не закрывает приложение.
+
             status.Text = ex.Message;
         }
     }
@@ -489,7 +583,7 @@ public partial class Form1 : Form
             }
             catch (NotImplementedException)
             {
-                // Данные модели доступны, даже если вычисление центра ещё не готово.
+
             }
         }
         status.Text = message;

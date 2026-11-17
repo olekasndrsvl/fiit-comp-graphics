@@ -1,17 +1,27 @@
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using Lab6.Core.Geometry;                                       
 using Lab6.Core.Materials;
 
 namespace Lab6.Rendering;
 
-internal readonly record struct RasterVertex(
+internal readonly record struct RasterVertex(                 
     float X,
     float Y,
     float Z,
     double InverseW,
     double UOverW,
     double VOverW,
-    bool HasTextureCoordinates);
+    double RedOverW,                                             
+    double GreenOverW,                                         
+    double BlueOverW,                                            
+    double WorldXOverW,                                          
+    double WorldYOverW,                                         
+    double WorldZOverW,                                     
+    double NormalXOverW,                                      
+    double NormalYOverW,                                          
+    double NormalZOverW,                                       
+    VertexAttributes Attributes);                              
 
 public sealed class SoftwareRasterizer
 {
@@ -76,8 +86,8 @@ public sealed class SoftwareRasterizer
         var w1StepY = (c.X - b.X) * inverseArea;
         var w2StepY = (a.X - c.X) * inverseArea;
         var w3StepY = (b.X - a.X) * inverseArea;
-        var hasTextureCoordinates =
-            a.HasTextureCoordinates && b.HasTextureCoordinates && c.HasTextureCoordinates;
+
+        var attributes = a.Attributes & b.Attributes & c.Attributes;
 
         for (var y = minY; y <= maxY; y++)
         {
@@ -94,8 +104,7 @@ public sealed class SoftwareRasterizer
             for (var x = minX; x <= maxX; x++)
             {
                 if (w1 >= 0 && w2 >= 0 && w3 >= 0)
-                    DrawFragment(x, y, w1, w2, w3, a, b, c,
-                        hasTextureCoordinates, material, shader);
+                    DrawFragment(x, y, w1, w2, w3, a, b, c, attributes, material, shader);
 
                 w1 += w1StepX;
                 w2 += w2StepX;
@@ -104,7 +113,7 @@ public sealed class SoftwareRasterizer
         }
     }
 
-    private void DrawFragment(
+    private void DrawFragment(                                  
         int x,
         int y,
         float w1,
@@ -113,7 +122,7 @@ public sealed class SoftwareRasterizer
         RasterVertex a,
         RasterVertex b,
         RasterVertex c,
-        bool hasTextureCoordinates,
+        VertexAttributes attributes,
         Material material,
         IFragmentShader shader)
     {
@@ -121,20 +130,51 @@ public sealed class SoftwareRasterizer
         if (depthTestEnabled && !depthBuffer.TestAndSet(x, y, depth))
             return;
 
-        double u = 0;
-        double v = 0;
-
-        if (hasTextureCoordinates)
+        if (attributes == VertexAttributes.None)
         {
-            var inverseW = w1 * a.InverseW + w2 * b.InverseW + w3 * c.InverseW;
-            if (Math.Abs(inverseW) < MinimumInterpolatedInverseW)
-                return;
-
-            u = (w1 * a.UOverW + w2 * b.UOverW + w3 * c.UOverW) / inverseW;
-            v = (w1 * a.VOverW + w2 * b.VOverW + w3 * c.VOverW) / inverseW;
+            colorBuffer[y * width + x] = shader.Shade(
+                new Fragment(
+                    depth, 0, 0, default, new Point3D(0, 0, 0), default, VertexAttributes.None),
+                material);
+            return;
         }
 
-        var fragment = new Fragment(depth, u, v, hasTextureCoordinates);
+        var inverseW = w1 * a.InverseW + w2 * b.InverseW + w3 * c.InverseW;
+        if (Math.Abs(inverseW) < MinimumInterpolatedInverseW)
+            return;
+
+        double Sample(double first, double second, double third) =>
+            (w1 * first + w2 * second + w3 * third) / inverseW;
+
+        var hasTexture = (attributes & VertexAttributes.Texture) != 0;
+        var hasColor = (attributes & VertexAttributes.Color) != 0;
+        var hasPosition = (attributes & VertexAttributes.WorldPosition) != 0;
+        var hasNormal = (attributes & VertexAttributes.WorldNormal) != 0;
+
+        var fragment = new Fragment(
+            depth,
+            hasTexture ? Sample(a.UOverW, b.UOverW, c.UOverW) : 0,
+            hasTexture ? Sample(a.VOverW, b.VOverW, c.VOverW) : 0,
+            hasColor
+                ? new VertexColor(
+                    (float)Sample(a.RedOverW, b.RedOverW, c.RedOverW),
+                    (float)Sample(a.GreenOverW, b.GreenOverW, c.GreenOverW),
+                    (float)Sample(a.BlueOverW, b.BlueOverW, c.BlueOverW))
+                : default,
+            hasPosition
+                ? new Point3D(
+                    Sample(a.WorldXOverW, b.WorldXOverW, c.WorldXOverW),
+                    Sample(a.WorldYOverW, b.WorldYOverW, c.WorldYOverW),
+                    Sample(a.WorldZOverW, b.WorldZOverW, c.WorldZOverW))
+                : new Point3D(0, 0, 0),
+            hasNormal
+                ? new Normal(
+                    Sample(a.NormalXOverW, b.NormalXOverW, c.NormalXOverW),
+                    Sample(a.NormalYOverW, b.NormalYOverW, c.NormalYOverW),
+                    Sample(a.NormalZOverW, b.NormalZOverW, c.NormalZOverW))
+                : default,
+            attributes);
+
         colorBuffer[y * width + x] = shader.Shade(fragment, material);
     }
 

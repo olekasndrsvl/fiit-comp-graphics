@@ -131,6 +131,17 @@ public sealed class Camera
         });
     }
 
+    public (Point3D Right, Point3D Up) ScreenAxes()              
+    {
+        var position = ToVector(Position);
+        var forward = Normalize(ToVector(Target) - position);
+        var right = Normalize(Cross(ToVector(Up), forward));
+        var cameraUp = Cross(forward, right);
+
+        return (new Point3D(right[0], right[1], right[2]),
+                new Point3D(cameraUp[0], cameraUp[1], cameraUp[2]));
+    }
+
     private static Vector<double> ToVector(Point3D point) =>
         Vector<double>.Build.DenseOfArray([point.X, point.Y, point.Z]);
 

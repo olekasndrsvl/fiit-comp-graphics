@@ -17,6 +17,7 @@ partial class Form1
     private NumericUpDown[] translation = null!, scaleInputs = null!, lineStart = null!, lineEnd = null!;
     private NumericUpDown[] revolutionPoint = null!;
     private NumericUpDown[] lightPosition = null!;
+    private NumericUpDown lightIntensity = null!, lightAmbient = null!;
     private NumericUpDown revolutionDivisions = null!;
     private NumericUpDown surfaceXMin = null!, surfaceXMax = null!, surfaceYMin = null!, surfaceYMax = null!;
     private NumericUpDown surfaceXDivisions = null!, surfaceYDivisions = null!;
@@ -466,7 +467,12 @@ partial class Form1
         panel.Controls.Add(Title("Источник света"));
         lightPosition = Triple(5, 5, -5, -10000, 10000);
         panel.Controls.Add(TripleField("Положение в мировой системе", lightPosition));
+        lightIntensity = Number(0, 3, 1, 2, 0.05m);
+        panel.Controls.Add(Field("Яркость источника", lightIntensity));
+        lightAmbient = Number(0, 1, 0.2m, 2, 0.05m);
+        panel.Controls.Add(Field("Фоновый свет (ambient)", lightAmbient));
         panel.Controls.Add(ActionButton("Добавить источник света", AddLightSource));
+        panel.Controls.Add(ActionButton("Цвет источника", PickLightColor));
         lightInfo = Note("Источник света не добавлен");
         panel.Controls.Add(lightInfo);
 
@@ -477,6 +483,9 @@ partial class Form1
             "Фонг — туншейдинг");
         shadingMode.SelectedIndexChanged += ShadingModeChanged;
         panel.Controls.Add(Field("Режим", shadingMode));
+
+        panel.Controls.Add(Title("Материал объекта"));
+        panel.Controls.Add(ActionButton("Цвет объекта", PickObjectColor));
 
         panel.Controls.Add(Title("Текстура"));
         panel.Controls.Add(ActionButton("Загрузить текстуру", LoadTexture));

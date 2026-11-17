@@ -1,6 +1,6 @@
-
 using System.Drawing;
 using Lab6.Core.Geometry;
+using Lab6.Core.Lighting;                                      
 using Lab6.Core.Mathematics;
 using Lab6.Core.Scene;
 using MathNet.Numerics.LinearAlgebra;
@@ -18,6 +18,8 @@ public sealed class WireframeRenderer
 
     private readonly SoftwareRasterizer rasterizer = new();
     private readonly UnlitTextureShader textureShader = new();
+    private readonly GouraudFragmentShader gouraudShader = new();  
+    private readonly PhongFragmentShader phongShader = new();      
     private double viewYaw;
     private double viewPitch;
     private double objectRotationAngle;
@@ -66,6 +68,10 @@ public sealed class WireframeRenderer
         return (minDepth, maxDepth);
     }
     public bool BackfaceCulling { get; set; }
+
+    public PointF? LightScreenPosition { get; private set; }      
+
+    public double WorldPerPixel { get; private set; } = 0.01;     
 
     public double ObjectRotationAngle
     {
@@ -121,9 +127,9 @@ public sealed class WireframeRenderer
             .ToArray();
 
         var clipVertices = item.Geometry.Positions
-            
+
             .Select(point => Transform(point, transform))
-            
+
             .ToArray();
 
         HashSet<(int, int)>? visibleEdges = null;
@@ -248,12 +254,14 @@ public sealed class WireframeRenderer
         return new PointF((float)screenX, (float)screenY);
     }
 
-    private static bool TryToRasterVertex(
+    private static bool TryToRasterVertex(                   
         ClipPoint point,
         Size viewport,
         bool perspective,
         ScreenFrame frame,
         TextureCoordinate? textureCoordinate,
+        VertexColor? color,                                 
+        WorldVertex? worldVertex,                               
         out RasterVertex vertex)
     {
         vertex = default;
@@ -280,9 +288,38 @@ public sealed class WireframeRenderer
             return false;
 
         var inverseW = 1 / point.W;
-        var hasTextureCoordinates = textureCoordinate.HasValue;
-        var u = textureCoordinate?.U ?? 0;
-        var v = textureCoordinate?.V ?? 0;
+
+        var attributes = VertexAttributes.None;                
+
+        double u = 0, v = 0;                                    
+        if (textureCoordinate is { } texture)                     
+        {
+            attributes |= VertexAttributes.Texture;
+            u = texture.U;
+            v = texture.V ?? 0;
+        }
+
+        double red = 0, green = 0, blue = 0;                       
+        if (color is { } vertexColor)
+        {
+            attributes |= VertexAttributes.Color;
+            red = vertexColor.R;
+            green = vertexColor.G;
+            blue = vertexColor.B;
+        }
+
+        double worldX = 0, worldY = 0, worldZ = 0;                
+        double normalX = 0, normalY = 0, normalZ = 0;
+        if (worldVertex is { } world)
+        {
+            attributes |= VertexAttributes.WorldSpace;
+            worldX = world.Position.X;
+            worldY = world.Position.Y;
+            worldZ = world.Position.Z;
+            normalX = world.WorldNormal.X;
+            normalY = world.WorldNormal.Y;
+            normalZ = world.WorldNormal.Z;
+        }
 
         vertex = new RasterVertex(
             (float)screenX,
@@ -291,7 +328,16 @@ public sealed class WireframeRenderer
             inverseW,
             u * inverseW,
             v * inverseW,
-            hasTextureCoordinates);
+            red * inverseW,                                  
+            green * inverseW,
+            blue * inverseW,
+            worldX * inverseW,
+            worldY * inverseW,
+            worldZ * inverseW,
+            normalX * inverseW,
+            normalY * inverseW,
+            normalZ * inverseW,
+            attributes);                                         
 
         return true;
     }
@@ -332,25 +378,88 @@ public sealed class WireframeRenderer
         }
     }
 
+    private readonly record struct VertexStageResult(
+        VertexColor[]? Colors,
+        WorldVertex[]? WorldVertices)
+    {
+        public static VertexStageResult None => new(null, null);
+    }
+
+    private static VertexStageResult RunVertexStage(
+        SceneObject item,
+        Matrix<double> world,
+        ShadingMode shadingMode,
+        Light? light)
+    {
+        if (light is null || shadingMode == ShadingMode.None)
+            return VertexStageResult.None;
+
+        var worldVertices = VertexTransform.Transform(item, world);
+
+        if (shadingMode == ShadingMode.Phong)
+            return new VertexStageResult(null, worldVertices);
+
+        var baseColor = VertexColor.FromColor(item.Material.Color);
+        var colors = new VertexColor[worldVertices.Length];
+
+        for (var i = 0; i < colors.Length; i++)
+        {
+            var vertex = worldVertices[i];
+            colors[i] = LightingModel.ShadeLambert(
+                baseColor, vertex.WorldNormal, vertex.Position, light);
+        }
+
+        return new VertexStageResult(colors, null);
+    }
+
+    private static double Distance(Point3D a, Point3D b)
+    {
+        var dx = a.X - b.X;
+        var dy = a.Y - b.Y;
+        var dz = a.Z - b.Z;
+        return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    private static T? ValueAt<T>(T[]? values, int index) where T : struct =>
+        values is not null && index >= 0 && index < values.Length ? values[index] : null;
+
     private void RasterizeFaces(
         SceneObject item,
+        Matrix<double> modelView,
         Matrix<double> transform,
         Size viewport,
         bool perspective,
+        Normal viewDirection,
         ScreenFrame frame,
-        IFragmentShader shader)
+        IFragmentShader shader,
+        VertexStageResult stage)
     {
+        var viewPositions = BackfaceCulling
+            ? item.Geometry.Positions
+                .Select(point => TransformToPoint3D(point, modelView))
+                .ToArray()
+            : null;
+        var cameraInViewSpace = new Point3D(0, 0, 0);
+
         foreach (var face in item.Geometry.Faces)
         {
+            if (viewPositions is not null &&
+                !BackfaceCuller.IsFaceVisible(
+                    item.Geometry, face, viewPositions, perspective, viewDirection, cameraInViewSpace))
+            {
+                continue;
+            }
+
             var vertices = new List<RasterVertex>(face.Vertices.Count);
             var isVisible = true;
 
             foreach (var faceVertex in face.Vertices)
             {
-                var point = item.Geometry.Positions[faceVertex.PositionIndex];
+                var index = faceVertex.PositionIndex;
+                var point = item.Geometry.Positions[index];
                 var clipPoint = Transform(point, transform);
-                TextureCoordinate? textureCoordinate = faceVertex.TextureCoordinateIndex is int index
-                    ? item.Geometry.TextureCoordinates[index]
+                TextureCoordinate? textureCoordinate = faceVertex.TextureCoordinateIndex is int textureIndex
+                    ? item.Geometry.TextureCoordinates[textureIndex]
                     : null;
 
                 if (!TryToRasterVertex(
@@ -359,6 +468,8 @@ public sealed class WireframeRenderer
                         perspective,
                         frame,
                         textureCoordinate,
+                        ValueAt(stage.Colors, index),
+                        ValueAt(stage.WorldVertices, index),
                         out var vertex))
                 {
                     isVisible = false;
@@ -373,18 +484,13 @@ public sealed class WireframeRenderer
         }
     }
 
-    public void Render(
-        Graphics graphics,
-        Size viewport,
-        IReadOnlyList<SceneObject> items,
-        SceneObject? selectedItem,
-        bool perspective,
-        bool showAxes = false,
-        bool zBufferEnabled = false)
+    public void Render(Graphics graphics, Size viewport, IReadOnlyList<SceneObject> items, SceneObject? selectedItem, bool perspective,
+        bool showAxes = false, bool zBufferEnabled = false, ShadingMode shadingMode = ShadingMode.None, Light? light = null)
     {
         if (items.Count == 0 || viewport.Width <= 0 || viewport.Height <= 0)
             return;
 
+        var lighting = shadingMode != ShadingMode.None && light is not null;
         var aspect = (double)viewport.Width / viewport.Height;
 
         var cameraTarget = selectedItem ?? items[0];
@@ -404,7 +510,15 @@ public sealed class WireframeRenderer
         if (!perspective)
             frame = frame with { Scale = frame.Scale * Camera.OrthographicZoom };
 
-        var filledRendering = zBufferEnabled || items.Any(item => item.Material.Texture is not null);
+
+        // Масштаб для перетаскивания маркера света: сколько мировых единиц в пикселе.
+        WorldPerPixel = perspective                             
+            ? 2 * Math.Tan(Camera.FieldOfView / 2) * Distance(Camera.Position, Camera.Target) /
+              Math.Max(1, viewport.Height)
+            : 1 / Math.Max(frame.Scale, 1e-6);
+
+        var filledRendering = zBufferEnabled || lighting ||      
+                              items.Any(item => item.Material.Texture is not null);
         var depthRange = (Min: 0f, Max: 1f);
 
         if (zBufferEnabled)
@@ -419,28 +533,22 @@ public sealed class WireframeRenderer
         if (filledRendering)
             rasterizer.Initialize(viewport, zBufferEnabled);
 
+        var viewDirection = perspective                            
+            ? new Normal(0, 0, 1)
+            : new Normal(projection[0, 2], projection[1, 2], projection[2, 2]);
+
+        LightScreenPosition = light is not null &&                 
+                              LightMarker.TryGetScreenPosition(
+                                  viewport, view, projection, perspective, frame, light.Position,
+                                  out var lightScreen, out _)
+            ? lightScreen
+            : null;
+
         using var pen = new Pen(Color.Black);
 
         foreach (var item in items)
         {
-            if (filledRendering)
-            {
-                var transform = item.Model * GetObjectRotation(item) * view * projection;
-                IFragmentShader shader = item.Material.Texture is not null
-                    ? textureShader
-                    : zBufferEnabled
-                        ? new DepthShader(depthRange.Min, depthRange.Max)
-                        : textureShader;
-
-                RasterizeFaces(
-                    item,
-                    transform,
-                    viewport,
-                    perspective,
-                    frame,
-                    shader);
-            }
-            else
+            if (!filledRendering)                              
             {
                 var segments = Project(
                     item,
@@ -451,7 +559,30 @@ public sealed class WireframeRenderer
                     frame);
 
                 DrawEdges(graphics, segments, pen);
+                continue;
             }
+
+            var world = item.Model * GetObjectRotation(item);        
+            var modelView = world * view;
+            var transform = modelView * projection;
+
+            var stage = lighting                                     
+                ? RunVertexStage(item, world, shadingMode, light)
+                : VertexStageResult.None;
+
+            // Точка расширения пункта 1.2 — здесь подключается фрагментный шейдер Фонга.
+            IFragmentShader shader = shadingMode switch           
+            {
+                ShadingMode.Gouraud when stage.Colors is not null => gouraudShader,
+                ShadingMode.Phong => phongShader,
+                _ => item.Material.Texture is not null
+                    ? textureShader
+                    : zBufferEnabled
+                        ? new DepthShader(depthRange.Min, depthRange.Max)
+                        : textureShader
+            };
+
+            RasterizeFaces(item, modelView, transform, viewport, perspective, viewDirection, frame, shader, stage);
         }
 
         if (filledRendering)
@@ -459,5 +590,18 @@ public sealed class WireframeRenderer
 
         if (showAxes)
             DrawAxes(graphics, viewport, view, projection, perspective);
+
+        if (light is not null)                                   
+        {
+            LightMarker.Draw(
+                graphics,
+                viewport,
+                view,
+                projection,
+                perspective,
+                frame,
+                light.Position,
+                light.Color);
+        }
     }
 }
