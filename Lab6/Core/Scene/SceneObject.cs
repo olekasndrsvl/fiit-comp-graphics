@@ -1,4 +1,5 @@
 using Lab6.Core.Geometry;
+using Lab6.Core.Materials;
 using Lab6.Core.Mathematics;
 using MathNet.Numerics.LinearAlgebra;
 
@@ -9,6 +10,7 @@ public sealed class SceneObject(string name, Polyhedron geometry, string? source
     public string Name { get; set; } = name;
     public string? SourcePath { get; set; } = sourcePath;
     public Polyhedron Geometry { get; } = geometry;
+    public Material Material { get; } = new();
     public Matrix<double> Model { get; private set; } = TransformMatrix.Identity;
 
     public Point3D Center

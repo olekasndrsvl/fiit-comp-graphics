@@ -12,10 +12,12 @@ public sealed class WireframeRenderer
     private const double DefaultVisibleRange = 4;
     private const double ViewportPadding = 20;
     private const double AxisLengthInPixels = 50;
+    private const double MinimumProjectionW = 1e-6;
 
     private SceneObject? framedItem;
 
-    private readonly ZBuffer zBuffer = new();
+    private readonly SoftwareRasterizer rasterizer = new();
+    private readonly UnlitTextureShader textureShader = new();
     private double viewYaw;
     private double viewPitch;
     private double objectRotationAngle;
@@ -40,13 +42,13 @@ public sealed class WireframeRenderer
 
         foreach (var item in items)
         {
-            var transform = item.Model * view * projection;
+            var transform = item.Model * GetObjectRotation(item) * view * projection;
 
             foreach (var point in item.Geometry.Positions)
             {
                 var clipPoint = Transform(point, transform);
 
-                if (Math.Abs(clipPoint.W) < 1e-6)
+                if (Math.Abs(clipPoint.W) < MinimumProjectionW)
                     continue;
 
                 float depth = perspective
@@ -246,12 +248,19 @@ public sealed class WireframeRenderer
         return new PointF((float)screenX, (float)screenY);
     }
 
-    private static ScreenPoint ToScreenPoint(
+    private static bool TryToRasterVertex(
         ClipPoint point,
         Size viewport,
         bool perspective,
-        ScreenFrame frame)
+        ScreenFrame frame,
+        TextureCoordinate? textureCoordinate,
+        out RasterVertex vertex)
     {
+        vertex = default;
+
+        if (perspective && point.W <= MinimumProjectionW)
+            return false;
+
         var x = point.X / point.W;
         var y = point.Y / point.W;
 
@@ -267,10 +276,24 @@ public sealed class WireframeRenderer
             ? point.Z / point.W
             : point.Z;
 
-        return new ScreenPoint(
+        if (!double.IsFinite(screenX) || !double.IsFinite(screenY) || !double.IsFinite(depth))
+            return false;
+
+        var inverseW = 1 / point.W;
+        var hasTextureCoordinates = textureCoordinate.HasValue;
+        var u = textureCoordinate?.U ?? 0;
+        var v = textureCoordinate?.V ?? 0;
+
+        vertex = new RasterVertex(
             (float)screenX,
             (float)screenY,
-            (float)depth);
+            (float)depth,
+            inverseW,
+            u * inverseW,
+            v * inverseW,
+            hasTextureCoordinates);
+
+        return true;
     }
 
     private static void DrawEdges(
@@ -314,25 +337,39 @@ public sealed class WireframeRenderer
         Matrix<double> transform,
         Size viewport,
         bool perspective,
-        ScreenFrame frame)
+        ScreenFrame frame,
+        IFragmentShader shader)
     {
         foreach (var face in item.Geometry.Faces)
         {
-            var vertices = face.Vertices
-                .Select(vertex =>
-                {
-                    var point = item.Geometry.Positions[vertex.PositionIndex];
-                    var clipPoint = Transform(point, transform);
+            var vertices = new List<RasterVertex>(face.Vertices.Count);
+            var isVisible = true;
 
-                    return ToScreenPoint(
+            foreach (var faceVertex in face.Vertices)
+            {
+                var point = item.Geometry.Positions[faceVertex.PositionIndex];
+                var clipPoint = Transform(point, transform);
+                TextureCoordinate? textureCoordinate = faceVertex.TextureCoordinateIndex is int index
+                    ? item.Geometry.TextureCoordinates[index]
+                    : null;
+
+                if (!TryToRasterVertex(
                         clipPoint,
                         viewport,
                         perspective,
-                        frame);
-                })
-                .ToList(); 
+                        frame,
+                        textureCoordinate,
+                        out var vertex))
+                {
+                    isVisible = false;
+                    break;
+                }
 
-            zBuffer.RasterizePolygon(vertices, viewport);
+                vertices.Add(vertex);
+            }
+
+            if (isVisible)
+                rasterizer.RasterizePolygon(vertices, item.Material, shader);
         }
     }
 
@@ -367,34 +404,41 @@ public sealed class WireframeRenderer
         if (!perspective)
             frame = frame with { Scale = frame.Scale * Camera.OrthographicZoom };
 
+        var filledRendering = zBufferEnabled || items.Any(item => item.Material.Texture is not null);
+        var depthRange = (Min: 0f, Max: 1f);
+
         if (zBufferEnabled)
         {
-            var depthRange = CalculateDepthRange(
+            depthRange = CalculateDepthRange(
                 items,
                 view,
                 projection,
                 perspective);
-
-            zBuffer.Initialize(
-                viewport,
-                depthRange.Min,
-                depthRange.Max);
         }
+
+        if (filledRendering)
+            rasterizer.Initialize(viewport, zBufferEnabled);
 
         using var pen = new Pen(Color.Black);
 
         foreach (var item in items)
         {
-            if (zBufferEnabled)
+            if (filledRendering)
             {
-                var transform = item.Model * view * projection;
+                var transform = item.Model * GetObjectRotation(item) * view * projection;
+                IFragmentShader shader = item.Material.Texture is not null
+                    ? textureShader
+                    : zBufferEnabled
+                        ? new DepthShader(depthRange.Min, depthRange.Max)
+                        : textureShader;
 
                 RasterizeFaces(
                     item,
                     transform,
                     viewport,
                     perspective,
-                    frame);
+                    frame,
+                    shader);
             }
             else
             {
@@ -410,8 +454,8 @@ public sealed class WireframeRenderer
             }
         }
 
-        if (zBufferEnabled)
-            zBuffer.Draw(graphics, viewport);
+        if (filledRendering)
+            rasterizer.Draw(graphics);
 
         if (showAxes)
             DrawAxes(graphics, viewport, view, projection, perspective);
