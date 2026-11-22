@@ -25,19 +25,19 @@ internal sealed class Scene
         scene._objects.Add(new AxisAlignedBox(
             new Point3(-3.65f, -4f, -4.65f),
             new Point3(-1.45f, -0.65f, -2.45f),
-            CreateObjectMaterial(new Vector3(0.88f, 0.48f, 0.16f), objectSettings[0])));
+            CreateObjectMaterial(new ColorRgb(0.88f, 0.48f, 0.16f), objectSettings[0])));
         scene._objects.Add(new AxisAlignedBox(
             new Point3(1.25f, -4f, -5.05f),
             new Point3(3.55f, -1.75f, -2.75f),
-            CreateObjectMaterial(new Vector3(0.18f, 0.42f, 0.84f), objectSettings[1])));
+            CreateObjectMaterial(new ColorRgb(0.18f, 0.42f, 0.84f), objectSettings[1])));
         scene._objects.Add(new Sphere(
             new Point3(-2.05f, -2.72f, 0.25f),
             1.28f,
-            CreateObjectMaterial(new Vector3(0.86f, 0.25f, 0.18f), objectSettings[2])));
+            CreateObjectMaterial(new ColorRgb(0.86f, 0.25f, 0.18f), objectSettings[2])));
         scene._objects.Add(new Sphere(
             new Point3(2.05f, -2.88f, -0.35f),
             1.12f,
-            CreateObjectMaterial(new Vector3(0.16f, 0.72f, 0.68f), objectSettings[3])));
+            CreateObjectMaterial(new ColorRgb(0.16f, 0.72f, 0.68f), objectSettings[3])));
 
         return scene;
     }
@@ -85,9 +85,9 @@ internal sealed class Scene
 
     private void AddCornellRoom(string? mirroredWall)
     {
-        var white = new Vector3(0.76f, 0.75f, 0.71f);
-        var red = new Vector3(0.78f, 0.12f, 0.09f);
-        var green = new Vector3(0.08f, 0.62f, 0.22f);
+        var white = new ColorRgb(0.76f, 0.75f, 0.71f);
+        var red = new ColorRgb(0.78f, 0.12f, 0.09f);
+        var green = new ColorRgb(0.08f, 0.62f, 0.22f);
 
         _objects.Add(new Quad(
             new Point3(-5f, 0f, -0.5f),
@@ -127,7 +127,7 @@ internal sealed class Scene
             CreateWallMaterial(white, "Потолок", mirroredWall)));
     }
 
-    private static Material CreateObjectMaterial(Vector3 color, ObjectRenderSettings settings)
+    private static Material CreateObjectMaterial(ColorRgb color, ObjectRenderSettings settings)
     {
         var reflection = 0f;
         var transparency = 0f;
@@ -155,7 +155,7 @@ internal sealed class Scene
             settings.IsMirror || settings.IsTransparent ? 80f : 30f);
     }
 
-    private static Material CreateWallMaterial(Vector3 color, string name, string? mirroredWall)
+    private static Material CreateWallMaterial(ColorRgb color, string name, string? mirroredWall)
     {
         var isMirror = string.Equals(name, mirroredWall, StringComparison.Ordinal);
         return new Material(

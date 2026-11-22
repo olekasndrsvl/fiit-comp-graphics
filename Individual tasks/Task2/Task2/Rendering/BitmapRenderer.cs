@@ -1,5 +1,4 @@
 using System.Drawing.Imaging;
-using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Task2;
@@ -38,21 +37,21 @@ internal static class BitmapRenderer
         return CreateBitmap(width, height, pixels);
     }
 
-    private static int ToArgb(Vector3 linearColor)
+    private static int ToArgb(ColorRgb linearColor)
     {
         var exposed = linearColor * 1.22f;
-        var mapped = new Vector3(
-            exposed.X / (1f + exposed.X),
-            exposed.Y / (1f + exposed.Y),
-            exposed.Z / (1f + exposed.Z));
-        var gamma = new Vector3(
-            MathF.Pow(Math.Clamp(mapped.X, 0f, 1f), 1f / 2.2f),
-            MathF.Pow(Math.Clamp(mapped.Y, 0f, 1f), 1f / 2.2f),
-            MathF.Pow(Math.Clamp(mapped.Z, 0f, 1f), 1f / 2.2f));
+        var mapped = new ColorRgb(
+            exposed.R / (1f + exposed.R),
+            exposed.G / (1f + exposed.G),
+            exposed.B / (1f + exposed.B));
+        var gamma = new ColorRgb(
+            MathF.Pow(Math.Clamp(mapped.R, 0f, 1f), 1f / 2.2f),
+            MathF.Pow(Math.Clamp(mapped.G, 0f, 1f), 1f / 2.2f),
+            MathF.Pow(Math.Clamp(mapped.B, 0f, 1f), 1f / 2.2f));
 
-        var red = (int)(gamma.X * 255f + 0.5f);
-        var green = (int)(gamma.Y * 255f + 0.5f);
-        var blue = (int)(gamma.Z * 255f + 0.5f);
+        var red = (int)(gamma.R * 255f + 0.5f);
+        var green = (int)(gamma.G * 255f + 0.5f);
+        var blue = (int)(gamma.B * 255f + 0.5f);
         return unchecked((int)0xFF000000 | red << 16 | green << 8 | blue);
     }
 

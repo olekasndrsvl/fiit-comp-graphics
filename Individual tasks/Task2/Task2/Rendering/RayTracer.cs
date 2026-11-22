@@ -5,12 +5,12 @@ namespace Task2;
 internal static class RayTracer
 {
     private const float Epsilon = RayTracingConstants.Epsilon;
-    private const int MaxDepth = 5;
+    private const int MaxDepth = 15;
 
-    public static Vector3 Trace(Scene scene, Ray ray, int depth = 0)
+    public static ColorRgb Trace(Scene scene, Ray ray, int depth = 0)
     {
         if (!scene.FindClosest(ray, Epsilon, float.PositiveInfinity, out var hit))
-            return new Vector3(0.012f, 0.014f, 0.018f);
+            return new ColorRgb(0.012f, 0.014f, 0.018f);
 
         var localColor = ShadeSurface(scene, hit, ray);
         if (depth >= MaxDepth)
@@ -48,7 +48,7 @@ internal static class RayTracer
             {
                 var refractedRay = new Ray(hit.Point - hit.Normal * Epsilon, refractedDirection);
                 var transmitted = Trace(scene, refractedRay, depth + 1);
-                var tint = Vector3.Lerp(Vector3.One, material.Color, 0.12f);
+                var tint = ColorRgb.Lerp(ColorRgb.White, material.Color, 0.12f);
                 result += transmitted * tint * transmissionWeight;
             }
             else
@@ -62,7 +62,7 @@ internal static class RayTracer
         return result;
     }
 
-    private static Vector3 ShadeSurface(Scene scene, HitInfo hit, Ray incomingRay)
+    private static ColorRgb ShadeSurface(Scene scene, HitInfo hit, Ray incomingRay)
     {
         var material = hit.Material;
         var result = material.Color * 0.045f;
@@ -96,7 +96,7 @@ internal static class RayTracer
             var specularFactor = MathF.Pow(
                 MathF.Max(0f, Vector3.Dot(viewDirection, reflectedLight)),
                 material.Shininess) * material.Specular;
-            var specular = Vector3.One * specularFactor;
+            var specular = ColorRgb.White * specularFactor;
 
             result += (diffuse + specular) * attenuation * visibility;
         }
