@@ -28,8 +28,7 @@ internal static class RayTracer
             transmissionWeight *= 1f - fresnel;
         }
 
-        var surfaceWeight = MathF.Max(0f, 1f - reflectionWeight - transmissionWeight);
-        var result = localColor * surfaceWeight;
+        var result = localColor;
 
         if (reflectionWeight > 0f)
         {
