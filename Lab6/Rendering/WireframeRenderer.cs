@@ -18,8 +18,7 @@ public sealed class WireframeRenderer
 
     private readonly SoftwareRasterizer rasterizer = new();
     private readonly UnlitTextureShader textureShader = new();
-    private readonly GouraudFragmentShader gouraudShader = new();  
-    private readonly PhongFragmentShader phongShader = new();      
+    private readonly GouraudFragmentShader gouraudShader = new();       
     private double viewYaw;
     private double viewPitch;
     private double objectRotationAngle;
@@ -487,6 +486,10 @@ public sealed class WireframeRenderer
     public void Render(Graphics graphics, Size viewport, IReadOnlyList<SceneObject> items, SceneObject? selectedItem, bool perspective,
         bool showAxes = false, bool zBufferEnabled = false, ShadingMode shadingMode = ShadingMode.None, Light? light = null)
     {
+        IFragmentShader phongShader = light is not null
+            ? new PhongFragmentShader(light)
+            : textureShader;
+
         if (items.Count == 0 || viewport.Width <= 0 || viewport.Height <= 0)
             return;
 

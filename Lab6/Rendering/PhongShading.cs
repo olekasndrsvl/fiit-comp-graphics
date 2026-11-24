@@ -1,20 +1,54 @@
-﻿using Lab6.Core.Materials;
+﻿
+using Lab6.Core.Geometry;
+using Lab6.Core.Materials;
+using Lab6.Core.Lighting;
 
 namespace Lab6.Rendering;
 
-/// <summary>
-/// Пункт 1.2 — шейдинг Фонга (туншейдинг). ЗАГОТОВКА: реализуется отдельной задачей.
-///
-/// Всё необходимое уже приходит во Fragment:
-///   • fragment.WorldNormal   — нормаль, проинтерполированная по грани, НЕ нормированная;
-///   • fragment.WorldPosition — мировая позиция фрагмента;
-///   • fragment.Has(VertexAttributes.WorldSpace) — признак, что данные доступны;
-///   • LightingModel.ToLight / LightingModel.Lambert — общая математика света.
-/// Нормировать интерполированную нормаль обязательно здесь, во фрагментном шейдере.
-/// </summary>
 internal sealed class PhongFragmentShader : IFragmentShader
 {
-    public int Shade(in Fragment fragment, Material material) =>
-        throw new NotImplementedException(
-            "Пункт 1.2: шейдинг Фонга (туншейдинг) ещё не реализован.");
+    private readonly Light light;
+
+    public PhongFragmentShader(Light light)
+    {
+        this.light = light;
+    }
+
+    public int Shade(in Fragment fragment, Material material)
+    {
+        var normal = fragment.WorldNormal.Normalize();
+
+        var baseColor = VertexColor.FromColor(material.Color);
+
+        var litColor = LightingModel.ShadeLambert(
+            baseColor,
+            normal,
+            fragment.WorldPosition,
+            light);
+
+        if (fragment.Has(VertexAttributes.Texture) &&
+            material.Texture is not null)
+        {
+            var textureColor = Color.FromArgb(
+                material.Texture.SampleArgb(fragment.U, fragment.V));
+
+            var texture = VertexColor.FromColor(textureColor);
+
+            litColor = new VertexColor(
+                litColor.R * texture.R,
+                litColor.G * texture.G,
+                litColor.B * texture.B);
+        }
+
+        litColor = litColor.Clamped();
+
+        return Color.FromArgb(
+            255,
+            ToByte(litColor.R),
+            ToByte(litColor.G),
+            ToByte(litColor.B)).ToArgb();
+    }
+
+    private static int ToByte(float value) =>
+        (int)Math.Round(Math.Clamp(value, 0f, 1f) * 255f);
 }
