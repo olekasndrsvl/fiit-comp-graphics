@@ -1,5 +1,4 @@
-﻿
-using Lab6.Core.Geometry;
+﻿using Lab6.Core.Geometry;
 using Lab6.Core.Materials;
 using Lab6.Core.Lighting;
 
@@ -8,10 +7,12 @@ namespace Lab6.Rendering;
 internal sealed class PhongFragmentShader : IFragmentShader
 {
     private readonly Light light;
+    private readonly Point3D cameraPosition;
 
-    public PhongFragmentShader(Light light)
+    public PhongFragmentShader(Light light, Point3D cameraPosition)
     {
         this.light = light;
+        this.cameraPosition = cameraPosition;
     }
 
     public int Shade(in Fragment fragment, Material material)
@@ -20,10 +21,11 @@ internal sealed class PhongFragmentShader : IFragmentShader
 
         var baseColor = VertexColor.FromColor(material.Color);
 
-        var litColor = LightingModel.ShadeLambert(
+        var litColor = LightingModel.ShadePhongToon(
             baseColor,
             normal,
             fragment.WorldPosition,
+            cameraPosition,
             light);
 
         if (fragment.Has(VertexAttributes.Texture) &&

@@ -10,4 +10,6 @@ public sealed class Light
     public double Intensity { get; set; } = 1.0;
     public double Ambient { get; set; } = 0.2;
     public bool Enabled { get; set; } = true;
+    public double SpecularStrength { get; set; } = 0.5;
+    public double Shininess { get; set; } = 32.0;
 }

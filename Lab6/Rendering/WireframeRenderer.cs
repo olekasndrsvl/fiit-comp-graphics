@@ -486,9 +486,6 @@ public sealed class WireframeRenderer
     public void Render(Graphics graphics, Size viewport, IReadOnlyList<SceneObject> items, SceneObject? selectedItem, bool perspective,
         bool showAxes = false, bool zBufferEnabled = false, ShadingMode shadingMode = ShadingMode.None, Light? light = null)
     {
-        IFragmentShader phongShader = light is not null
-            ? new PhongFragmentShader(light)
-            : textureShader;
 
         if (items.Count == 0 || viewport.Width <= 0 || viewport.Height <= 0)
             return;
@@ -513,6 +510,9 @@ public sealed class WireframeRenderer
         if (!perspective)
             frame = frame with { Scale = frame.Scale * Camera.OrthographicZoom };
 
+        IFragmentShader phongShader = light is not null
+            ? new PhongFragmentShader(light, Camera.Position)
+            : textureShader;
 
         // Масштаб для перетаскивания маркера света: сколько мировых единиц в пикселе.
         WorldPerPixel = perspective                             

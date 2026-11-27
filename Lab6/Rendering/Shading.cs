@@ -83,6 +83,52 @@ static class LightingModel
             ? new Normal(0, 0, 0) : new Normal(dx / length, dy / length, dz / length);
     }
 
+    private static double ToonBand(double lambert)
+    {
+        const double transition = 0.08;
+
+        if (lambert < 0.2 - transition)
+            return 0.2;
+
+        if (lambert < 0.2 + transition)
+        {
+            var t = SmoothStep(
+                (lambert - (0.2 - transition)) / (2.0 * transition));
+
+            return 0.2 + (0.4 - 0.2) * t;
+        }
+
+        if (lambert < 0.45 - transition)
+            return 0.4;
+
+        if (lambert < 0.45 + transition)
+        {
+            var t = SmoothStep(
+                (lambert - (0.45 - transition)) / (2.0 * transition));
+
+            return 0.4 + (0.7 - 0.4) * t;
+        }
+
+        if (lambert < 0.75 - transition)
+            return 0.7;
+
+        if (lambert < 0.75 + transition)
+        {
+            var t = SmoothStep(
+                (lambert - (0.75 - transition)) / (2.0 * transition));
+
+            return 0.7 + (1.0 - 0.7) * t;
+        }
+
+        return 1.0;
+    }
+
+    private static double SmoothStep(double value)
+    {
+        value = Math.Clamp(value, 0.0, 1.0);
+        return value * value * (3.0 - 2.0 * value);
+    }
+
     // Косинус угла между нормалью и направлением на свет (0..1). Нормаль должна быть единичной
     public static double Lambert(Normal normal, Point3D point, Light light)
     {
@@ -92,7 +138,42 @@ static class LightingModel
         return Math.Max(0.0, Normal.Dot(normal, ToLight(point, light)));
     }
 
-    // Цвет по модели Ламберта: ambient + диффузное отражение
+    public static double Specular(
+        Normal normal,
+        Point3D point,
+        Point3D cameraPosition,
+        Light light)
+    {
+        if (!light.Enabled || normal.Length < MinimumLength)
+            return 0.0;
+
+        var lightDirection = ToLight(point, light);
+        normal = normal.Normalize();
+
+        var ndotl = Normal.Dot(normal, lightDirection);
+
+        if (ndotl <= 0)
+            return 0.0;
+
+        var reflection = new Normal(
+            2.0 * ndotl * normal.X - lightDirection.X,
+            2.0 * ndotl * normal.Y - lightDirection.Y,
+            2.0 * ndotl * normal.Z - lightDirection.Z
+        ).Normalize();
+
+        var viewDirection = new Normal(
+            cameraPosition.X - point.X,
+            cameraPosition.Y - point.Y,
+            cameraPosition.Z - point.Z
+        ).Normalize();
+
+        var rdotv = Math.Max(0.0, Normal.Dot(reflection, viewDirection));
+
+        return light.SpecularStrength
+            * Math.Max(light.Intensity, 0.0)
+            * Math.Pow(rdotv, light.Shininess);
+    }
+
     public static VertexColor ShadeLambert(VertexColor baseColor, Normal normal, Point3D point, Light light)
     {
         var ambient = light.Enabled ? Math.Clamp(light.Ambient, 0.0, 1.0) : 1.0;
@@ -104,5 +185,47 @@ static class LightingModel
             (float)(baseColor.R * (ambient + lightColor.R * k)),
             (float)(baseColor.G * (ambient + lightColor.G * k)),
             (float)(baseColor.B * (ambient + lightColor.B * k))).Clamped();
+    }
+
+
+    public static VertexColor ShadePhongToon(
+        VertexColor baseColor,
+        Normal normal,
+        Point3D point,
+        Point3D cameraPosition,
+        Light light)
+    {
+        var ambient = light.Enabled
+            ? Math.Clamp(light.Ambient, 0.0, 1.0)
+            : 1.0;
+
+        var intensity = light.Enabled
+            ? Math.Max(light.Intensity, 0.0)
+            : 0.0;
+
+        var lambert = Lambert(normal, point, light);
+
+        var band = ToonBand(lambert);
+
+        var lightColor = VertexColor.FromColor(light.Color);
+        var diffuseIntensity = intensity * band;
+
+        var result = new VertexColor(
+            (float)(baseColor.R * (ambient + lightColor.R * diffuseIntensity)),
+            (float)(baseColor.G * (ambient + lightColor.G * diffuseIntensity)),
+            (float)(baseColor.B * (ambient + lightColor.B * diffuseIntensity)));
+
+        var specular = Specular(
+            normal,
+            point,
+            cameraPosition,
+            light);
+
+        result = new VertexColor(
+            result.R + (float)(lightColor.R * specular),
+            result.G + (float)(lightColor.G * specular),
+            result.B + (float)(lightColor.B * specular));
+
+        return result.Clamped();
     }
 }
